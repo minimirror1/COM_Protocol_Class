@@ -14,6 +14,7 @@ Com_Protocol::Com_Protocol() :
     tick_(nullptr),
     receiveBuffer_(nullptr),
     bufferLength_(0) {
+    resetFileTransferContext();
 }
 
 // 소멸자: 동적 할당된 메모리 해제
@@ -183,7 +184,7 @@ void Com_Protocol::processReceivedData() {
                                   receiveBuffer_[payloadIndex_ - 1];
                     
                     // CRC 계산을 위한 임시 버퍼 생성
-                    uint8_t* crcBuffer = new uint8_t[expectedLength_ - 2]; // CRC 제외한 크기                    
+                    uint8_t* crcBuffer = new uint8_t[expectedLength_ - 2]; // CRC 제외한 ��기                    
                     size_t crcIndex = 0;
                     
                     // 수신자 ID 복사
@@ -279,8 +280,8 @@ void Com_Protocol::processCommand(uint16_t senderId, uint16_t receiverId,
             handlePing(senderId, payload, payloadLength);
             break;
             
-        case CMD_DATA:
-            handleData(senderId, payload, payloadLength);
+        case CMD_FILE_RECEIVE:
+            handleFileReceive(senderId, payload, payloadLength);
             break;
             
         case CMD_CONFIG:
@@ -299,5 +300,94 @@ void Com_Protocol::handlePing(uint16_t senderId, uint8_t* payload, size_t length
     
     // PONG 메시지 전송 (송신자와 수신자 ID를 교체하여 응답)
     sendData(senderId, receiverId_, CMD_PONG, pongPayload, 4);
+}
+
+void Com_Protocol::resetFileTransferContext() {
+    memset(&fileContext_, 0, sizeof(FileTransferContext));
+    fileContext_.isTransferring = false;
+    fileContext_.retryCount = 0;
+}
+
+void Com_Protocol::handleFileReceive(uint16_t senderId, uint8_t* payload, size_t length) {
+    if (length < 1) return;
+    
+    FileTransferStage stage = static_cast<FileTransferStage>(payload[0]);
+    
+    switch (stage) {
+        case FileTransferStage::REQUEST_RECEIVE: {
+            // 파일 수신 요청 처리
+            if (length < sizeof(uint32_t) + 1) return;  // 최소 크기 체크
+            
+            uint32_t fileSize = *reinterpret_cast<uint32_t*>(payload + 1);
+            if (fileSize > MAX_FILE_SIZE) {
+                sendFileReceiveAck(senderId, stage, false);
+                return;
+            }
+            
+            fileContext_.fileSize = fileSize;
+            fileContext_.isTransferring = true;
+            fileContext_.receivedSize = 0;
+            fileContext_.currentIndex = 0;
+            
+            sendFileReceiveAck(senderId, stage, true);
+            break;
+        }
+        
+        case FileTransferStage::RECEIVING_DATA: {
+            if (!fileContext_.isTransferring) {
+                sendFileReceiveAck(senderId, stage, false);
+                return;
+            }
+            
+            uint32_t blockIndex = *reinterpret_cast<uint32_t*>(payload + 1);
+            if (blockIndex != fileContext_.currentIndex) {
+                sendFileReceiveAck(senderId, stage, false);
+                return;
+            }
+            
+            // 데이터 처리
+            size_t dataSize = length - 5;  // stage(1) + blockIndex(4)
+            fileContext_.receivedSize += dataSize;
+            fileContext_.currentIndex++;
+            
+            // 체크섬 업데이트
+            fileContext_.checksum = calculateCRC16(payload + 5, dataSize);
+            
+            sendFileReceiveAck(senderId, stage, true, blockIndex);
+            break;
+        }
+        
+        case FileTransferStage::VERIFY_CHECKSUM: {
+            if (!fileContext_.isTransferring) {
+                sendFileReceiveAck(senderId, stage, false);
+                return;
+            }
+            
+            uint16_t receivedChecksum = *reinterpret_cast<uint16_t*>(payload + 1);
+            bool checksumMatch = (receivedChecksum == fileContext_.checksum);
+            
+            sendFileReceiveAck(senderId, stage, checksumMatch);
+            
+            if (checksumMatch) {
+                // 파일 수신 완료
+                resetFileTransferContext();
+            }
+            break;
+        }
+    }
+}
+
+void Com_Protocol::sendFileReceiveAck(uint16_t receiverId, FileTransferStage stage, 
+                                    bool success, uint32_t data) {
+    uint8_t response[6];
+    response[0] = static_cast<uint8_t>(stage);
+    response[1] = success ? 1 : 0;
+    
+    if (data != 0) {
+        *reinterpret_cast<uint32_t*>(response + 2) = data;
+        sendData(receiverId, receiverId_, CMD_FILE_RECEIVE_ACK, response, 6);
+    } else {
+        sendData(receiverId, receiverId_, CMD_FILE_RECEIVE_ACK, response, 2);
+    }
 }
 

@@ -31,10 +31,29 @@ protected:
     virtual void handleUnknownCommand(uint16_t cmd) {}
 
     // 명령어 정의
+    static const uint16_t CMD_ACK_BIT = 0x8000;
     static const uint16_t CMD_PING = 0x0001;
-    static const uint16_t CMD_PONG = 0x0011;  // PONG 응답용 명령어 추가
-    static const uint16_t CMD_DATA = 0x0002;
+    static const uint16_t CMD_PONG = CMD_PING | CMD_ACK_BIT;  // PONG 응답용 명령어 추가
+    static const uint16_t CMD_FILE_RECEIVE = 0x0002;  // CMD_FILE을 CMD_FILE_RECEIVE로 변경
+    static const uint16_t CMD_FILE_RECEIVE_ACK = CMD_FILE_RECEIVE | CMD_ACK_BIT;
     static const uint16_t CMD_CONFIG = 0x0003;
+
+    // 파일 전송 단계 정의
+    enum class FileTransferStage : uint8_t {
+        REQUEST_RECEIVE = 1,     // 파일 수신 요청
+        READY_TO_RECEIVE = 2,    // 수신 준비 완료
+        RECEIVING_DATA = 3,      // 데이터 수신 중
+        VERIFY_CHECKSUM = 4      // 체크섬 검증
+    };
+
+    // 파일 전송 관련 상수
+    static const uint8_t MAX_RETRY_COUNT = 5;
+    static const uint16_t MAX_FILENAME_LENGTH = 256;
+    static const uint32_t MAX_FILE_SIZE = 1024 * 1024; // 1MB
+
+    // 파일 전송 관련 가상 함수 추가
+    virtual void handleFileReceive(uint16_t senderId, uint8_t* payload, size_t length);
+    virtual void handleFileReceiveAck(uint16_t senderId, uint8_t* payload, size_t length);
 
 private:
     static const uint8_t START_MARKER = 0x16;
@@ -76,6 +95,25 @@ private:
     
     void processCommand(uint16_t senderId, uint16_t receiverId, 
                        uint16_t cmd, uint8_t* payload, size_t payloadLength);
+
+    // 파일 전송 관련 멤버 변수
+    struct FileTransferContext {
+        char filename[MAX_FILENAME_LENGTH];
+        uint32_t fileSize;
+        uint32_t bufferSize;
+        uint32_t currentIndex;
+        uint8_t retryCount;
+        bool isTransferring;
+        bool isSender;
+        uint32_t receivedSize;
+        uint16_t checksum;
+    } fileContext_;
+
+    void resetFileTransferContext();
+    void processFileTransfer(FileTransferStage stage, uint8_t* payload, size_t length);
+    void sendFileAck(uint16_t receiverId, FileTransferStage stage, bool success, 
+                    uint32_t data = 0);
+    uint32_t calculateFileChecksum(uint8_t* data, size_t length);
 };
 
 #endif /* COM_PROTOCOL_CLASS_COM_PROTOCOL_CLASS_H_ */
