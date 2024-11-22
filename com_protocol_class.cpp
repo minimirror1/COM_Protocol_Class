@@ -183,8 +183,7 @@ void Com_Protocol::processReceivedData() {
                                   receiveBuffer_[payloadIndex_ - 1];
                     
                     // CRC 계산을 위한 임시 버퍼 생성
-                    uint8_t* crcBuffer = new uint8_t[expectedLength_ - 2]; // CRC 제외한 크기
-                    //uint8_t crcBuffer[256] = {0,};
+                    uint8_t* crcBuffer = new uint8_t[expectedLength_ - 2]; // CRC 제외한 크기                    
                     size_t crcIndex = 0;
                     
                     // 수신자 ID 복사

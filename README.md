@@ -2,6 +2,14 @@
 
 통신 프로토콜을 구현한 C++ 클래스입니다.
 
+## 의존성
+
+이 클래스는 다음 라이브러리들에 의존성이 있습니다:
+
+- [cpp_Uart_Class_v2](https://github.com/minimirror1/cpp_Uart_Class_v2): UART 통신을 위한 클래스 라이브러리
+- [cpp_tick](https://github.com/minimirror1/cpp_tick): 타이머 기능을 위한 클래스 라이브러리
+
+
 ## 주요 기능
 
 - UART 기반의 패킷 통신 프로토콜 구현
