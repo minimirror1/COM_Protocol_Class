@@ -52,5 +52,7 @@
 
 ### 오류 검증
 - `calculateCRC16()`: CRC16 XMODEM 체크섬 계산
+ - [CRC Calculator](https://crccalc.com/?crc=&method=CRC-16&datatype=0&outtype=0)
+ - [CRC16 XMODEM Table](https://crccalc.com/?crc=&method=CRC-16/XMODEM&datatype=0&outtype=0)
 - 패킷 타임아웃 처리 (100ms)
 - 패킷 길이 검증
