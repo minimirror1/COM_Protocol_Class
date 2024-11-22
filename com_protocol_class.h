@@ -11,6 +11,14 @@
 #include "UART_Class.h"
 #include "cpp_tick.h"
 
+// 파일 전송 단계 정의
+enum class FileTransferStage : uint8_t {
+	REQUEST_RECEIVE = 1,     // 파일 수신 요청
+	READY_TO_RECEIVE = 2,    // 수신 준비 완료
+	RECEIVING_DATA = 3,      // 데이터 수신 중
+	VERIFY_CHECKSUM = 4      // 체크섬 검증
+};
+
 class Com_Protocol {
 public:
     Com_Protocol();
@@ -38,13 +46,7 @@ protected:
     static const uint16_t CMD_FILE_RECEIVE_ACK = CMD_FILE_RECEIVE | CMD_ACK_BIT;
     static const uint16_t CMD_CONFIG = 0x0003;
 
-    // 파일 전송 단계 정의
-    enum class FileTransferStage : uint8_t {
-        REQUEST_RECEIVE = 1,     // 파일 수신 요청
-        READY_TO_RECEIVE = 2,    // 수신 준비 완료
-        RECEIVING_DATA = 3,      // 데이터 수신 중
-        VERIFY_CHECKSUM = 4      // 체크섬 검증
-    };
+
 
     // 파일 전송 관련 상수
     static const uint8_t MAX_RETRY_COUNT = 5;
@@ -114,6 +116,10 @@ private:
     void sendFileAck(uint16_t receiverId, FileTransferStage stage, bool success, 
                     uint32_t data = 0);
     uint32_t calculateFileChecksum(uint8_t* data, size_t length);
+
+    // 파일 수신 응답 전송 함수 추가
+    void sendFileReceiveAck(uint16_t receiverId, FileTransferStage stage, 
+                           bool success, uint32_t data = 0);
 };
 
 #endif /* COM_PROTOCOL_CLASS_COM_PROTOCOL_CLASS_H_ */
