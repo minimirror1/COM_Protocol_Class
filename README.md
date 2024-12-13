@@ -13,7 +13,7 @@
 플랫폼에 따라 적절한 시리얼 인터페이스와 타이머 구현체를 선택하여 초기화합니다.
 
 ### Qt 환경에서의 초기화
-```
+```cpp
 #ifdef QT_PLATFORM
 int main() {
     QtSerialImpl serial("COM1", 115200);
@@ -26,7 +26,7 @@ int main() {
 ```
 
 ### STM32 환경에서의 사용
-```
+```cpp
 extern UART_HandleTypeDef huart1;
 
 STM32SerialImpl serial(&huart1, USART1_IRQn); // 추상 인터페이스 초기화, 구조체와 인터럽트 IRQ 전달
