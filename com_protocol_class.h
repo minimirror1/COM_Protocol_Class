@@ -31,6 +31,9 @@ public:
     bool isDataAvailable() const;
     void processReceivedData();
 
+    // ping 요청 함수 추가
+    void sendPing(uint16_t targetId);
+
 protected:
     // 사용자가 선택적으로 재정의할 수 있는 가상 함수들
     virtual void handlePing(uint16_t senderId, uint8_t* payload, size_t length);
@@ -55,7 +58,7 @@ protected:
 
     // 파일 전송 관련 가상 함수 추가
     virtual void handleFileReceive(uint16_t senderId, uint8_t* payload, size_t length);
-    virtual void handleFileReceiveAck(uint16_t senderId, uint8_t* payload, size_t length);
+    //virtual void handleFileReceiveAck(uint16_t senderId, uint8_t* payload, size_t length);
 
 private:
     static const uint8_t START_MARKER = 0x16;

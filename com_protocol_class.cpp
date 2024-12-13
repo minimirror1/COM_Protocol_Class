@@ -41,8 +41,9 @@ void Com_Protocol::sendData(uint16_t receiverId, uint16_t senderId, uint16_t cmd
     if (!serial_) return;
     
     // 시작 시퀀스 전송
+    const uint8_t startMarker = START_MARKER;  // 로컬 변수로 선언
     for (int i = 0; i < START_SEQUENCE_LENGTH; i++) {
-        serial_->write(&START_MARKER, 1);
+        serial_->write(&startMarker, 1);  // 로컬 변수의 주소 전달
     }
     
     // 데이터 길이 전송
@@ -188,7 +189,7 @@ void Com_Protocol::processReceivedData() {
                     crcBuffer[crcIndex++] = (uint8_t)(receiverId_ >> 8);
                     crcBuffer[crcIndex++] = (uint8_t)(receiverId_ & 0xFF);
                     
-                    // 송신자 ID 복사
+                    // ���신자 ID 복사
                     crcBuffer[crcIndex++] = (uint8_t)(senderId_ >> 8);
                     crcBuffer[crcIndex++] = (uint8_t)(senderId_ & 0xFF);
                     
@@ -347,7 +348,7 @@ void Com_Protocol::handleFileReceive(uint16_t senderId, uint8_t* payload, size_t
             fileContext_.receivedSize += dataSize;
             fileContext_.currentIndex++;
             
-            // 체크섬 업데이트
+            // 체��섬 업데이트
             fileContext_.checksum = calculateCRC16(payload + 5, dataSize);
             
             sendFileReceiveAck(senderId, stage, true, blockIndex);
@@ -386,5 +387,11 @@ void Com_Protocol::sendFileReceiveAck(uint16_t receiverId, FileTransferStage sta
     } else {
         sendData(receiverId, receiverId_, CMD_FILE_RECEIVE_ACK, response, 2);
     }
+}
+
+// ping 요청 함수 구현
+void Com_Protocol::sendPing(uint16_t targetId) {
+    uint8_t pingPayload[] = "PING";
+    sendData(targetId, receiverId_, CMD_PING, pingPayload, 4);
 }
 

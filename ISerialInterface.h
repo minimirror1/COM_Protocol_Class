@@ -1,6 +1,13 @@
 #ifndef I_SERIAL_INTERFACE_H_
 #define I_SERIAL_INTERFACE_H_
 
+// stm32
+#if defined(USE_HAL_DRIVER)
+#include "main.h"
+#endif
+
+//qt
+
 class ISerialInterface {
 public:
     virtual ~ISerialInterface() = default;

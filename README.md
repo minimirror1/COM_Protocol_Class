@@ -17,7 +17,6 @@
 #ifdef QT_PLATFORM
 int main() {
     QtSerialImpl serial("COM1", 115200);
-    QtTick tick;  // Qt용 Tick 구현체
     
     Com_Protocol protocol;
     protocol.initialize(&serial, &tick);
@@ -28,16 +27,34 @@ int main() {
 
 ### STM32 환경에서의 사용
 ```
-#ifdef STM32_PLATFORM
-void main() {
-    STM32SerialImpl serial(&huart1);
-    STM32Tick tick;  // STM32용 Tick 구현체
-    
-    Com_Protocol protocol;
-    protocol.initialize(&serial, &tick);
-    // ... 이하 동일한 코드
+extern UART_HandleTypeDef huart1;
+
+STM32SerialImpl serial(&huart1, USART1_IRQn); // 추상 인터페이스 초기화, 구조체와 인터럽트 IRQ 전달
+Tick tick;  //serial 내부에서 사용될 tick 인스턴스
+
+Tick delay1;
+
+
+int main_cpp(void)
+{
+
+    // Option. 송수신 표시용 LED
+	serial.init_txLed(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
+	serial.init_rxLed(LD7_GPIO_Port, LD7_Pin, GPIO_PIN_SET);
+
+    // 프로토콜 초기화
+	Com_Protocol protocol;
+	protocol.initialize(&serial, &tick);//시리얼 인터페이스와 tick 인스턴스 전달
+
+	while(1){
+
+        // 테스트 코드
+		serial.loop();
+		if(delay1.delay(1000)){			
+			protocol.sendPing(10);
+		}
+	}
 }
-#endif
 ```
 
 ## 주요 기능
