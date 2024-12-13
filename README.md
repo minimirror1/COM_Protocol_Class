@@ -9,6 +9,36 @@
 - [cpp_Uart_Class_v2](https://github.com/minimirror1/cpp_Uart_Class_v2): UART 통신을 위한 클래스 라이브러리
 - [cpp_tick](https://github.com/minimirror1/cpp_tick): 타이머 기능을 위한 클래스 라이브러리
 
+## 초기화 방법
+플랫폼에 따라 적절한 시리얼 인터페이스와 타이머 구현체를 선택하여 초기화합니다.
+
+### Qt 환경에서의 초기화
+```
+#ifdef QT_PLATFORM
+int main() {
+    QtSerialImpl serial("COM1", 115200);
+    QtTick tick;  // Qt용 Tick 구현체
+    
+    Com_Protocol protocol;
+    protocol.initialize(&serial, &tick);
+    // ... 이하 동일한 코드
+}
+#endif
+```
+
+### STM32 환경에서의 사용
+```
+#ifdef STM32_PLATFORM
+void main() {
+    STM32SerialImpl serial(&huart1);
+    STM32Tick tick;  // STM32용 Tick 구현체
+    
+    Com_Protocol protocol;
+    protocol.initialize(&serial, &tick);
+    // ... 이하 동일한 코드
+}
+#endif
+```
 
 ## 주요 기능
 

@@ -8,7 +8,7 @@
 #ifndef COM_PROTOCOL_CLASS_COM_PROTOCOL_CLASS_H_
 #define COM_PROTOCOL_CLASS_COM_PROTOCOL_CLASS_H_
 
-#include "UART_Class.h"
+#include "ISerialInterface.h"
 #include "cpp_tick.h"
 
 // 파일 전송 단계 정의
@@ -24,7 +24,7 @@ public:
     Com_Protocol();
     virtual ~Com_Protocol();
 
-    void initialize(Serial* uart, Tick* tick);
+    void initialize(ISerialInterface* serial, Tick* tick);
     void sendData(uint16_t receiverId, uint16_t senderId, uint16_t cmd,
                  const uint8_t* data, size_t length);
     void receiveData(uint8_t* buffer, size_t length);
@@ -81,7 +81,7 @@ private:
     uint16_t payloadIndex_;
     uint8_t startSequenceCount_;
     
-    Serial* uart_;
+    ISerialInterface* serial_;
     Tick* tick_;
     uint8_t* receiveBuffer_;
     size_t bufferLength_;

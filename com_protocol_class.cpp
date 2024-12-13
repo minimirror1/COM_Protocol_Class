@@ -7,10 +7,11 @@
 #include "main.h"
 #include "string.h"
 #include "com_protocol_class.h"
+#include "ISerialInterface.h"
 
 // 생성자: 멤버 변수 초기화
 Com_Protocol::Com_Protocol() : 
-    uart_(nullptr), 
+    serial_(nullptr), 
     tick_(nullptr),
     receiveBuffer_(nullptr),
     bufferLength_(0) {
@@ -26,11 +27,10 @@ Com_Protocol::~Com_Protocol() {
 }
 
 // UART와 타이머 초기화
-void Com_Protocol::initialize(Serial* uart, Tick* tick) {
-    uart_ = uart;
+void Com_Protocol::initialize(ISerialInterface* serial, Tick* tick) {
+    serial_ = serial;
     tick_ = tick;
     
-    // 기본 버퍼 크기 설정
     bufferLength_ = 256;
     receiveBuffer_ = new uint8_t[bufferLength_];
 }
@@ -38,73 +38,69 @@ void Com_Protocol::initialize(Serial* uart, Tick* tick) {
 // 데이터 전송
 void Com_Protocol::sendData(uint16_t receiverId, uint16_t senderId, uint16_t cmd,
                           const uint8_t* data, size_t length) {
-    if (!uart_) return;
+    if (!serial_) return;
     
     // 시작 시퀀스 전송
     for (int i = 0; i < START_SEQUENCE_LENGTH; i++) {
-        uart_->write(START_MARKER);
+        serial_->write(&START_MARKER, 1);
     }
     
-    // 데이터 길이 전송 (수신자ID + 송신자ID + CMD + 페이로드 + CRC)
-    uint16_t totalLength = 2 + 2 + 2 + length + 2;  // receiverId + senderId + cmd + payload + crc
-    uart_->write((uint8_t)(totalLength >> 8));
-    uart_->write((uint8_t)(totalLength & 0xFF));
+    // 데이터 길이 전송
+    uint16_t totalLength = 2 + 2 + 2 + length + 2;
+    uint8_t lengthBytes[2] = {
+        static_cast<uint8_t>(totalLength >> 8),
+        static_cast<uint8_t>(totalLength & 0xFF)
+    };
+    serial_->write(lengthBytes, 2);
     
     // 수신자 ID, 송신자 ID, CMD 전송
-    uart_->write((uint8_t)(receiverId >> 8));
-    uart_->write((uint8_t)(receiverId & 0xFF));
-    uart_->write((uint8_t)(senderId >> 8));
-    uart_->write((uint8_t)(senderId & 0xFF));
-    uart_->write((uint8_t)(cmd >> 8));
-    uart_->write((uint8_t)(cmd & 0xFF));
+    uint8_t headerBytes[6] = {
+        static_cast<uint8_t>(receiverId >> 8),
+        static_cast<uint8_t>(receiverId & 0xFF),
+        static_cast<uint8_t>(senderId >> 8),
+        static_cast<uint8_t>(senderId & 0xFF),
+        static_cast<uint8_t>(cmd >> 8),
+        static_cast<uint8_t>(cmd & 0xFF)
+    };
+    serial_->write(headerBytes, 6);
     
     // 페이로드 전송
-    for (size_t i = 0; i < length; i++) {
-        uart_->write(data[i]);
+    if (length > 0) {
+        serial_->write(data, length);
     }
     
-    // CRC 계산 (수신자 ID부터 페이로드까지)
-    uint8_t* crcBuffer = new uint8_t[2 + 2 + 2 + length];  // receiverId + senderId + cmd + payload
-    size_t crcIndex = 0;
+    // CRC 계산 및 전송
+    uint8_t* crcBuffer = new uint8_t[2 + 2 + 2 + length];
+    memcpy(crcBuffer, headerBytes, 6);
+    if (length > 0) {
+        memcpy(crcBuffer + 6, data, length);
+    }
     
-    // CRC 버퍼에 데이터 복사
-    crcBuffer[crcIndex++] = (uint8_t)(receiverId >> 8);
-    crcBuffer[crcIndex++] = (uint8_t)(receiverId & 0xFF);
-    crcBuffer[crcIndex++] = (uint8_t)(senderId >> 8);
-    crcBuffer[crcIndex++] = (uint8_t)(senderId & 0xFF);
-    crcBuffer[crcIndex++] = (uint8_t)(cmd >> 8);
-    crcBuffer[crcIndex++] = (uint8_t)(cmd & 0xFF);
-    
-    memcpy(crcBuffer + crcIndex, data, length);
-    uint16_t crc = calculateCRC16(crcBuffer, crcIndex + length);
+    uint16_t crc = calculateCRC16(crcBuffer, 6 + length);
     delete[] crcBuffer;
     
-    // CRC 전송
-    uart_->write((uint8_t)(crc >> 8));
-    uart_->write((uint8_t)(crc & 0xFF));
+    uint8_t crcBytes[2] = {
+        static_cast<uint8_t>(crc >> 8),
+        static_cast<uint8_t>(crc & 0xFF)
+    };
+    serial_->write(crcBytes, 2);
 }
 
 // 데이터 수신
 void Com_Protocol::receiveData(uint8_t* buffer, size_t length) {
-    if (!uart_ || !buffer) return;
+    if (!serial_ || !buffer) return;
     
-    size_t bytesRead = 0;
-    while (bytesRead < length && uart_->available()) {
-        buffer[bytesRead++] = uart_->read();
-    }
+    size_t bytesRead = serial_->read(buffer, length);
 }
 
 // 수신 가능한 데이터가 있는지 확인
 bool Com_Protocol::isDataAvailable() const {
-    if (uart_) {
-        return uart_->available() > 0;
-    }
-    return false;
+    return (serial_ && serial_->isOpen());
 }
 
 // 수신된 데이터 처리
 void Com_Protocol::processReceivedData() {
-    if (!uart_ || !receiveBuffer_) {
+    if (!serial_ || !receiveBuffer_) {
         return;
     }
 
@@ -117,8 +113,9 @@ void Com_Protocol::processReceivedData() {
         startSequenceCount_ = 0;
     }
 
-    while (uart_->available()) {
-        uint8_t data = uart_->read();
+    uint8_t tempBuffer[1];
+    while (serial_->read(tempBuffer, 1) > 0) {
+        uint8_t data = tempBuffer[0];
         lastReceiveTime_ = currentTime;
 
         switch (currentState_) {
@@ -184,7 +181,7 @@ void Com_Protocol::processReceivedData() {
                                   receiveBuffer_[payloadIndex_ - 1];
                     
                     // CRC 계산을 위한 임시 버퍼 생성
-                    uint8_t* crcBuffer = new uint8_t[expectedLength_ - 2]; // CRC 제외한 ��기                    
+                    uint8_t* crcBuffer = new uint8_t[expectedLength_ - 2]; // CRC 제외한 기                    
                     size_t crcIndex = 0;
                     
                     // 수신자 ID 복사
