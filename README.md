@@ -27,15 +27,12 @@ int main() {
 
 ### STM32 환경에서의 사용
 ```cpp
-extern UART_HandleTypeDef huart1;
-
 STM32SerialImpl serial(&huart1, USART1_IRQn); // 추상 인터페이스 초기화, 구조체와 인터럽트 IRQ 전달
-Tick tick;  //serial 내부에서 사용될 tick 인스턴스
+//HAL Driver Callback 호출을 위해 전역 객체로 선언
 
-Tick delay1;
+Tick delay1;//테스트 코드
 
-
-int main_cpp(void)
+int main(void)
 {
 
     // Option. 송수신 표시용 LED
@@ -43,8 +40,8 @@ int main_cpp(void)
 	serial.init_rxLed(LD7_GPIO_Port, LD7_Pin, GPIO_PIN_SET);
 
     // 프로토콜 초기화
-	Com_Protocol protocol;
-	protocol.initialize(&serial, &tick);//시리얼 인터페이스와 tick 인스턴스 전달
+    Tick tick;  //serial 내부에서 사용될 tick 인스턴스
+	Com_Protocol protocol(&serial, &tick);//시리얼 인터페이스와 tick 인스턴스 전달	
 
 	while(1){
 
@@ -55,6 +52,16 @@ int main_cpp(void)
 		}
 	}
 }
+
+/* HAL Driver Callback */
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
+	serial.TxCpltCallback(huart);
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+	serial.RxCpltCallback(huart);
+}
+
 ```
 
 ## 주요 기능

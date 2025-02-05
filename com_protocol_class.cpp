@@ -10,12 +10,13 @@
 #include "ISerialInterface.h"
 
 // 생성자: 멤버 변수 초기화
-Com_Protocol::Com_Protocol() : 
-    serial_(nullptr), 
-    tick_(nullptr),
+Com_Protocol::Com_Protocol(ISerialInterface* serial, ITick* tick) :
+    serial_(serial), 
+    tick_(tick),
     receiveBuffer_(nullptr),
-    bufferLength_(0) {
+    bufferLength_(256) {
     resetFileTransferContext();
+    receiveBuffer_ = new uint8_t[bufferLength_];
 }
 
 // 소멸자: 동적 할당된 메모리 해제
@@ -24,15 +25,6 @@ Com_Protocol::~Com_Protocol() {
         delete[] receiveBuffer_;
         receiveBuffer_ = nullptr;
     }
-}
-
-// UART와 타이머 초기화
-void Com_Protocol::initialize(ISerialInterface* serial, Tick* tick) {
-    serial_ = serial;
-    tick_ = tick;
-    
-    bufferLength_ = 256;
-    receiveBuffer_ = new uint8_t[bufferLength_];
 }
 
 // 데이터 전송
@@ -55,14 +47,14 @@ void Com_Protocol::sendData(uint16_t receiverId, uint16_t senderId, uint16_t cmd
     serial_->write(lengthBytes, 2);
     
     // 수신자 ID, 송신자 ID, CMD 전송
-    uint8_t headerBytes[6] = {
-        static_cast<uint8_t>(receiverId >> 8),
-        static_cast<uint8_t>(receiverId & 0xFF),
-        static_cast<uint8_t>(senderId >> 8),
-        static_cast<uint8_t>(senderId & 0xFF),
-        static_cast<uint8_t>(cmd >> 8),
-        static_cast<uint8_t>(cmd & 0xFF)
-    };
+    uint8_t headerBytes[6] = {0,};
+    headerBytes[0] = (receiverId >> 8);
+	headerBytes[1] =(receiverId & 0xFF);
+	headerBytes[2] =(senderId >> 8);
+	headerBytes[3] =(senderId & 0xFF);
+	headerBytes[4] =(cmd >> 8);
+	headerBytes[5] =(cmd & 0xFF);
+
     serial_->write(headerBytes, 6);
     
     // 페이로드 전송
@@ -72,6 +64,7 @@ void Com_Protocol::sendData(uint16_t receiverId, uint16_t senderId, uint16_t cmd
     
     // CRC 계산 및 전송
     uint8_t* crcBuffer = new uint8_t[2 + 2 + 2 + length];
+
     memcpy(crcBuffer, headerBytes, 6);
     if (length > 0) {
         memcpy(crcBuffer + 6, data, length);
@@ -189,7 +182,7 @@ void Com_Protocol::processReceivedData() {
                     crcBuffer[crcIndex++] = (uint8_t)(receiverId_ >> 8);
                     crcBuffer[crcIndex++] = (uint8_t)(receiverId_ & 0xFF);
                     
-                    // ���신자 ID 복사
+                    // 신자 ID 복사
                     crcBuffer[crcIndex++] = (uint8_t)(senderId_ >> 8);
                     crcBuffer[crcIndex++] = (uint8_t)(senderId_ & 0xFF);
                     
@@ -265,12 +258,14 @@ uint16_t Com_Protocol::calculateCRC16(const uint8_t* data, size_t length) {
     
     while (length--) {
         crc = (crc << 8) ^ crc16_table[((crc >> 8) ^ *data++) & 0xFF];
+    	//crc = (crc >> 8) ^ crc16_table[(crc & 0xFF) ^ *data++];
+
     }
     
     return crc;
 }
 
-// 클래스 내 새로운 함수 추가
+// 클래스 내 새로운 함수 ���가
 void Com_Protocol::processCommand(uint16_t senderId, uint16_t receiverId, 
                                 uint16_t cmd, uint8_t* payload, size_t payloadLength) {
     switch (cmd) {
@@ -348,7 +343,7 @@ void Com_Protocol::handleFileReceive(uint16_t senderId, uint8_t* payload, size_t
             fileContext_.receivedSize += dataSize;
             fileContext_.currentIndex++;
             
-            // 체��섬 업데이트
+            // 체섬 업데이트
             fileContext_.checksum = calculateCRC16(payload + 5, dataSize);
             
             sendFileReceiveAck(senderId, stage, true, blockIndex);
@@ -393,5 +388,6 @@ void Com_Protocol::sendFileReceiveAck(uint16_t receiverId, FileTransferStage sta
 void Com_Protocol::sendPing(uint16_t targetId) {
     uint8_t pingPayload[] = "PING";
     sendData(targetId, receiverId_, CMD_PING, pingPayload, 4);
+    //sendData(1, 2, CMD_PING, pingPayload, 4);
 }
 

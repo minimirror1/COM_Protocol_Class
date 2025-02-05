@@ -4,6 +4,10 @@ STM32SerialImpl::STM32SerialImpl(UART_HandleTypeDef* huart, IRQn_Type UART_IRQn)
     serial_.init(huart, UART_IRQn_);
 }
 
+void STM32SerialImpl::init(){
+	serial_.init(huart_, UART_IRQn_);
+}
+
 bool STM32SerialImpl::open() {
     return true; // UART_Class는 init 시점에 초기화되므로 항상 true 반환
 }

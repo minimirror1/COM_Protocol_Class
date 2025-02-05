@@ -5,6 +5,7 @@
 class STM32SerialImpl : public ISerialInterface {
 public:
     STM32SerialImpl(UART_HandleTypeDef* huart, IRQn_Type UART_IRQn_);
+    virtual void init() override;
     virtual bool open() override;
     virtual void close() override;
     virtual size_t write(const uint8_t* data, size_t length) override;
