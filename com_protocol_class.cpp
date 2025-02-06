@@ -281,6 +281,10 @@ void Com_Protocol::processCommand(uint16_t senderId, uint16_t receiverId,
             handleConfig(senderId, payload, payloadLength);
             break;
             
+        case CMD_MAIN_POWER_CONTROL:
+        	handleMainPowerControl(senderId, payload, payloadLength);
+        	break;
+
         default:
             handleUnknownCommand(cmd);
             break;
@@ -294,6 +298,33 @@ void Com_Protocol::handlePing(uint16_t senderId, uint8_t* payload, size_t length
     // PONG 메시지 전송 (송신자와 수신자 ID를 교체하여 응답)
     sendData(senderId, receiverId_, CMD_PONG, pongPayload, 4);
 }
+
+void Com_Protocol::handleMainPowerControl(uint16_t senderId, uint8_t* payload, size_t length){
+    // 페이로드 길이 체크
+    if (length < 1) return;
+
+    uint8_t powerFlag = payload[0];
+
+    // 플래그 값 검증
+    if (powerFlag > 1) return;  // 0 또는 1만 유효
+
+    // 메인파워 제어 로직 구현
+    // - powerFlag가 0이면 메인파워 OFF
+    // - powerFlag가 1이면 메인파워 ON
+    // - 하드웨어 제어 인터페이스를 통해 실제 전원 제어 수행
+    
+    // 제어 결과에 대한 응답 전송
+    // - 제어 성공/실패 여부를 포함한 응답 패킷 구성
+    // - sendData() 함수를 사용하여 응답 전송
+
+    uint8_t ackPayload[1];
+    ackPayload[0] = powerFlag;
+
+    sendData(senderId, receiverId_, CMD_MAIN_POWER_CONTROL_ACK, ackPayload, 1);
+
+}
+
+
 
 void Com_Protocol::resetFileTransferContext() {
     memset(&fileContext_, 0, sizeof(FileTransferContext));

@@ -39,6 +39,7 @@ protected:
     virtual void handlePing(uint16_t senderId, uint8_t* payload, size_t length);
     virtual void handleData(uint16_t senderId, uint8_t* payload, size_t length) {}
     virtual void handleConfig(uint16_t senderId, uint8_t* payload, size_t length) {}
+    virtual void handleMainPowerControl(uint16_t senderId, uint8_t* payload, size_t length);
     virtual void handleUnknownCommand(uint16_t cmd) {}
 
     // 명령어 정의
@@ -48,6 +49,9 @@ protected:
     static const uint16_t CMD_FILE_RECEIVE = 0x0002;  // CMD_FILE을 CMD_FILE_RECEIVE로 변경
     static const uint16_t CMD_FILE_RECEIVE_ACK = CMD_FILE_RECEIVE | CMD_ACK_BIT;
     static const uint16_t CMD_CONFIG = 0x0003;
+
+    static const uint16_t CMD_MAIN_POWER_CONTROL = 0x0100;
+    static const uint16_t CMD_MAIN_POWER_CONTROL_ACK = CMD_MAIN_POWER_CONTROL | CMD_ACK_BIT;
 
 
 
