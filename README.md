@@ -97,7 +97,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 | 명령어     | 코드   | 설명                       |
 | ---------- | ------ | -------------------------- |
 | CMD_PING   | 0x0001 | 연결 상태 확인용 PING 요청 |
-| CMD_PONG   | 0x0011 | PING에 대한 응답           |
+| CMD_PONG   | 0x8001 | PING에 대한 응답           |
 | CMD_DATA   | 0x0002 | 일반 데이터 전송           |
 | CMD_CONFIG | 0x0003 | 설정 데이터 전송           |
 
