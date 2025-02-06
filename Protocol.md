@@ -1,4 +1,3 @@
-
 # 통신 프로토콜 문서
 
 이 문서는 `Com_Protocol` 클래스에서 구현한 통신 프로토콜의 패킷 구조와 명령어(CMD) 구분에 대해 설명합니다.
@@ -165,6 +164,40 @@
 * **처리** :
 * CMD_CONFIG 수신 시, `handleConfig()` 함수가 호출되며,
 * 필요에 따라 사용자 정의 기능으로 오버라이드(override)하여 구현합니다.
+
+### 3.6. CMD_STATUS_SYNC (0x0100)
+* **설명** :
+* 장비의 상태 동기화를 위한 명령어입니다.
+* **Payload** : 없음
+
+### 3.7. CMD_STATUS_SYNC_ACK (0x8100)
+* **설명** :
+* 장비의 상태 응답 입니다다.
+* **Payload** :
+* **Payload 포맷** :
+  * `[Hours (1 바이트), Minutes (1 바이트), Seconds (1 바이트), Current Count (2 바이트), Total Count (2 바이트), Voltage (2 바이트), Current (2 바이트)]`
+  * 총 11 바이트 길이
+* **필드 설명** :
+  * Hours/Minutes/Seconds : 연속 구동 시간 (시/분/초)
+  * Current Count : 현재 동작 회차 (2 바이트, 빅 엔디안)
+  * Total Count : 총 동작 회차 (2 바이트, 빅 엔디안)
+  * Voltage : 전압값 (2 바이트, 빅 엔디안, 단위: 0.01V)
+  * Current : 전류값 (2 바이트, 빅 엔디안, 단위: 0.01A)
+* **예시** :
+  * 전압 3000 (0x0BB8) = 30.00V
+  * 전류 4000 (0x0FA0) = 40.00A
+
+* **처리** :
+
+### 3.8. CMD_MAIN_POWER_CONTROL (0x0100)
+* **설명** :
+* 장비의 메인 전원 제어를 위한 명령어입니다.
+* **Payload** : payload[0] = 0x01 : ON, payload[0] = 0x00 : OFF
+
+### 3.9. CMD_MAIN_POWER_CONTROL_ACK (0x8101)
+* **설명** :
+* 장비의 메인 전원 제어 응답 입니다. 제어 결과로 전송됩니다.
+* **Payload** : payload[0] = 0x01 : ON, payload[0] = 0x00 : OFF
 
 ---
 
