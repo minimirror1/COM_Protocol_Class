@@ -35,20 +35,30 @@ public:
     void sendPing(uint16_t targetId);
 
 protected:
-    // 사용자가 선택적으로 재정의할 수 있는 가상 함수들
+    // 사용자가 선택적으로 재정의할 수 있는 가상 함수들, 파싱 전에 호출되는 함수들
     virtual void handlePing(uint16_t senderId, uint8_t* payload, size_t length);
     virtual void handleData(uint16_t senderId, uint8_t* payload, size_t length) {}
     virtual void handleConfig(uint16_t senderId, uint8_t* payload, size_t length) {}
+
+    virtual void handleStatusSync(uint16_t senderId, uint8_t* payload, size_t length);
+
     virtual void handleMainPowerControl(uint16_t senderId, uint8_t* payload, size_t length);
     virtual void handleUnknownCommand(uint16_t cmd) {}
 
+    // 파싱 후 호출되는 함수
+    virtual void setMainPower(uint8_t powerFlag);
+
     // 명령어 정의
+
     static const uint16_t CMD_ACK_BIT = 0x8000;
     static const uint16_t CMD_PING = 0x0001;
     static const uint16_t CMD_PONG = CMD_PING | CMD_ACK_BIT;  // PONG 응답용 명령어 추가
     static const uint16_t CMD_FILE_RECEIVE = 0x0002;  // CMD_FILE을 CMD_FILE_RECEIVE로 변경
     static const uint16_t CMD_FILE_RECEIVE_ACK = CMD_FILE_RECEIVE | CMD_ACK_BIT;
     static const uint16_t CMD_CONFIG = 0x0003;
+
+    static const uint16_t CMD_STATUS_SYNC = 0x0010;
+    static const uint16_t CMD_STATUS_SYNC_ACK = CMD_STATUS_SYNC | CMD_ACK_BIT;
 
     static const uint16_t CMD_MAIN_POWER_CONTROL = 0x0100;
     static const uint16_t CMD_MAIN_POWER_CONTROL_ACK = CMD_MAIN_POWER_CONTROL | CMD_ACK_BIT;

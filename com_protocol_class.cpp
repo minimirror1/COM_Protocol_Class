@@ -265,7 +265,7 @@ uint16_t Com_Protocol::calculateCRC16(const uint8_t* data, size_t length) {
     return crc;
 }
 
-// 클래스 내 새로운 함수 ���가
+// 클래스 내 새로운 함수 추가
 void Com_Protocol::processCommand(uint16_t senderId, uint16_t receiverId, 
                                 uint16_t cmd, uint8_t* payload, size_t payloadLength) {
     switch (cmd) {
@@ -285,6 +285,10 @@ void Com_Protocol::processCommand(uint16_t senderId, uint16_t receiverId,
         	handleMainPowerControl(senderId, payload, payloadLength);
         	break;
 
+        case CMD_STATUS_SYNC:
+        	handleStatusSync(senderId, payload, payloadLength);
+        	break;
+
         default:
             handleUnknownCommand(cmd);
             break;
@@ -297,6 +301,56 @@ void Com_Protocol::handlePing(uint16_t senderId, uint8_t* payload, size_t length
     
     // PONG 메시지 전송 (송신자와 수신자 ID를 교체하여 응답)
     sendData(senderId, receiverId_, CMD_PONG, pongPayload, 4);
+}
+
+void Com_Protocol::handleStatusSync(uint16_t senderId, uint8_t* payload, size_t length) {
+    // 페이로드 길이 체크
+
+    /* 상태 동기화 로직 구현  재정의 하여 측정된 값을 추가*/
+    // 연속 구동시간
+    uint32_t totalRunTime = 60000; // ms 단위의 전체 구동시간 획득
+    // 동작 회차
+    uint16_t currentCount = 1000; // 현재 동작 회차
+    uint16_t totalCount = 2000; // 총 동작 회차
+    // 전압
+    uint16_t voltage = 3000; // 30.00V
+    // 전류
+    uint16_t current = 4000; // 40.00A
+    /************************************************* */
+
+
+
+    /*패킷 생성*/
+    // 응답 패킷 준비 (11byte)
+    uint8_t responsePayload[11] = {0,};
+    
+    
+    // 시간 변환 (ms -> 시/분/초)
+    uint8_t hours = totalRunTime / (1000 * 60 * 60);
+    uint8_t minutes = (totalRunTime % (1000 * 60 * 60)) / (1000 * 60);
+    uint8_t seconds = ((totalRunTime % (1000 * 60 * 60)) % (1000 * 60)) / 1000;
+    
+    // 시간 정보 입력
+    responsePayload[0] = hours;
+    responsePayload[1] = minutes;
+    responsePayload[2] = seconds;
+    
+    // 동작 회차 정보 입력 (현재/총)
+
+    responsePayload[3] = (currentCount >> 8) & 0xFF;
+    responsePayload[4] = currentCount & 0xFF;
+    responsePayload[5] = (totalCount >> 8) & 0xFF;
+    responsePayload[6] = totalCount & 0xFF;
+    
+    // 에너지 정보 입력 (전압/전류)
+
+    responsePayload[7] = (voltage >> 8) & 0xFF;
+    responsePayload[8] = voltage & 0xFF;
+    responsePayload[9] = (current >> 8) & 0xFF;
+    responsePayload[10] = current & 0xFF;
+    
+    // 응답 전송
+    sendData(senderId, receiverId_, CMD_STATUS_SYNC_ACK, responsePayload, 11);
 }
 
 void Com_Protocol::handleMainPowerControl(uint16_t senderId, uint8_t* payload, size_t length){
@@ -317,6 +371,9 @@ void Com_Protocol::handleMainPowerControl(uint16_t senderId, uint8_t* payload, s
     // - 제어 성공/실패 여부를 포함한 응답 패킷 구성
     // - sendData() 함수를 사용하여 응답 전송
 
+    setMainPower(powerFlag);
+
+    /* 응답 구현 */
     uint8_t ackPayload[1];
     ackPayload[0] = powerFlag;
 
@@ -324,6 +381,13 @@ void Com_Protocol::handleMainPowerControl(uint16_t senderId, uint8_t* payload, s
 
 }
 
+void Com_Protocol::setMainPower(uint8_t powerFlag){
+    if (powerFlag == 1){
+        // 메인파워 ON
+    } else {
+        // 메인파워 OFF
+    }
+}
 
 
 void Com_Protocol::resetFileTransferContext() {
