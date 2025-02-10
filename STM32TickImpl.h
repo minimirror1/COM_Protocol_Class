@@ -1,7 +1,7 @@
 #ifndef STM32TICKIMPL_H
 #define STM32TICKIMPL_H
 
-#if defined(USE_HAL_DRIVER)
+#if defined(USE_HAL_DRIVER) 
 #include "ITick.h"
 #include "main.h"
 
