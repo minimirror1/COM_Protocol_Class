@@ -9,12 +9,21 @@
 #include "com_protocol_class.h"
 #include "ISerialInterface.h"
 
-// 생성자: 멤버 변수 초기화
+// 생성자: 멤버 변수 초기화 (새로운 시퀀스 관련 변수 포함)
 Com_Protocol::Com_Protocol(ISerialInterface* serial, ITick* tick) :
     serial_(serial), 
     tick_(tick),
     receiveBuffer_(nullptr),
-    bufferLength_(256) {
+    bufferLength_(256),
+    currentSequenceNumber_(0),
+    expectedSequenceNumber_(0),
+    missingPacketCount_(0),
+    currentState_(ReceiveState::WAIT_START),
+    lastReceiveTime_(0),
+    expectedLength_(0),
+    payloadIndex_(0),
+    startSequenceCount_(0)
+{
     resetFileTransferContext();
     receiveBuffer_ = new uint8_t[bufferLength_];
 }
@@ -27,35 +36,37 @@ Com_Protocol::~Com_Protocol() {
     }
 }
 
-// 데이터 전송
+// 데이터 전송 함수 수정 (헤더에 시퀀스 번호 추가)
 void Com_Protocol::sendData(uint16_t receiverId, uint16_t senderId, uint16_t cmd,
                           const uint8_t* data, size_t length) {
     if (!serial_) return;
     
-    // 시작 시퀀스 전송
-    const uint8_t startMarker = START_MARKER;  // 로컬 변수로 선언
+    // 시작 시퀀스 전송 (필수)
+    const uint8_t startMarker = START_MARKER;
     for (int i = 0; i < START_SEQUENCE_LENGTH; i++) {
-        serial_->write(&startMarker, 1);  // 로컬 변수의 주소 전달
+        serial_->write(&startMarker, 1);
     }
     
-    // 데이터 길이 전송
-    uint16_t totalLength = 2 + 2 + 2 + length + 2;
+    // 전체 길이 계산 및 전송 (필수)
+    uint16_t totalLength = 8 + length + 2; // header(8) + payload + CRC(2)
     uint8_t lengthBytes[2] = {
         static_cast<uint8_t>(totalLength >> 8),
         static_cast<uint8_t>(totalLength & 0xFF)
     };
     serial_->write(lengthBytes, 2);
     
-    // 수신자 ID, 송신자 ID, CMD 전송
-    uint8_t headerBytes[6] = {0,};
-    headerBytes[0] = (receiverId >> 8);
-	headerBytes[1] =(receiverId & 0xFF);
-	headerBytes[2] =(senderId >> 8);
-	headerBytes[3] =(senderId & 0xFF);
-	headerBytes[4] =(cmd >> 8);
-	headerBytes[5] =(cmd & 0xFF);
-
-    serial_->write(headerBytes, 6);
+    // 헤더 생성 (시퀀스 번호 포함)
+    uint8_t headerBytes[8] = {0,};
+    headerBytes[0] = static_cast<uint8_t>(receiverId >> 8);
+    headerBytes[1] = static_cast<uint8_t>(receiverId & 0xFF);
+    headerBytes[2] = static_cast<uint8_t>(senderId >> 8);
+    headerBytes[3] = static_cast<uint8_t>(senderId & 0xFF);
+    headerBytes[4] = static_cast<uint8_t>(cmd >> 8);
+    headerBytes[5] = static_cast<uint8_t>(cmd & 0xFF);
+    headerBytes[6] = static_cast<uint8_t>(currentSequenceNumber_ >> 8);
+    headerBytes[7] = static_cast<uint8_t>(currentSequenceNumber_ & 0xFF);
+    
+    serial_->write(headerBytes, 8);
     
     // 페이로드 전송
     if (length > 0) {
@@ -63,14 +74,13 @@ void Com_Protocol::sendData(uint16_t receiverId, uint16_t senderId, uint16_t cmd
     }
     
     // CRC 계산 및 전송
-    uint8_t* crcBuffer = new uint8_t[2 + 2 + 2 + length];
-
-    memcpy(crcBuffer, headerBytes, 6);
+    uint8_t* crcBuffer = new uint8_t[8 + length];
+    memcpy(crcBuffer, headerBytes, 8);
     if (length > 0) {
-        memcpy(crcBuffer + 6, data, length);
+        memcpy(crcBuffer + 8, data, length);
     }
     
-    uint16_t crc = calculateCRC16(crcBuffer, 6 + length);
+    uint16_t crc = calculateCRC16(crcBuffer, 8 + length);
     delete[] crcBuffer;
     
     uint8_t crcBytes[2] = {
@@ -78,6 +88,9 @@ void Com_Protocol::sendData(uint16_t receiverId, uint16_t senderId, uint16_t cmd
         static_cast<uint8_t>(crc & 0xFF)
     };
     serial_->write(crcBytes, 2);
+    
+    // 송신 시퀀스 번호 증가
+    currentSequenceNumber_++;
 }
 
 // 데이터 수신
@@ -92,12 +105,10 @@ bool Com_Protocol::isDataAvailable() const {
     return (serial_ && serial_->isOpen());
 }
 
-// 수신된 데이터 처리
+// processReceivedData() 함수에 READ_SEQ 상태 추가
 void Com_Protocol::processReceivedData() {
-    if (!serial_ || !receiveBuffer_) {
-        return;
-    }
-
+    if (!serial_ || !receiveBuffer_) return;
+    
     uint32_t currentTime = tick_->getTickCount();
     
     // 패킷 타임아웃 체크
@@ -119,7 +130,7 @@ void Com_Protocol::processReceivedData() {
                     if (startSequenceCount_ == START_SEQUENCE_LENGTH) {
                         currentState_ = ReceiveState::READ_LENGTH;
                         payloadIndex_ = 0;
-                        memset(receiveBuffer_, 0, bufferLength_); // 버퍼 초기화
+                        memset(receiveBuffer_, 0, bufferLength_);
                     }
                 } else {
                     startSequenceCount_ = 0;
@@ -130,7 +141,7 @@ void Com_Protocol::processReceivedData() {
                 receiveBuffer_[payloadIndex_++] = data;
                 if (payloadIndex_ == 2) {
                     expectedLength_ = (receiveBuffer_[0] << 8) | receiveBuffer_[1];
-                    if (expectedLength_ > bufferLength_ || expectedLength_ < 8) { // 최소 길이 체크
+                    if (expectedLength_ > bufferLength_ || expectedLength_ < 10) {
                         currentState_ = ReceiveState::WAIT_START;
                         startSequenceCount_ = 0;
                     } else {
@@ -162,6 +173,34 @@ void Com_Protocol::processReceivedData() {
                 receiveBuffer_[payloadIndex_++] = data;
                 if (payloadIndex_ == 2) {
                     cmd_ = (receiveBuffer_[0] << 8) | receiveBuffer_[1];
+                    currentState_ = ReceiveState::READ_SEQ;
+                    payloadIndex_ = 0;
+                }
+                break;
+
+            case ReceiveState::READ_SEQ:
+                receiveBuffer_[payloadIndex_++] = data;
+                if (payloadIndex_ == 2) {
+                    seq_ = (receiveBuffer_[0] << 8) | receiveBuffer_[1];
+                    if (cmd_ == CMD_SYNC) {
+                        expectedSequenceNumber_ = 0;
+                    } else {
+                        uint16_t diff = seq_ - expectedSequenceNumber_;
+                        if (diff == 0) {
+                            expectedSequenceNumber_++;
+                        } else if (diff > 0 && diff <= SEQUENCE_JUMP_THRESHOLD) {
+                            missingPacketCount_ += diff;
+                            expectedSequenceNumber_ = seq_ + 1;
+                        } else if (diff > 0) {
+                            missingPacketCount_ += diff;
+                            expectedSequenceNumber_ = seq_ + 1;
+                        } else {
+                            currentState_ = ReceiveState::WAIT_START;
+                            startSequenceCount_ = 0;
+                            payloadIndex_ = 0;
+                            continue;
+                        }
+                    }
                     currentState_ = ReceiveState::READ_PAYLOAD;
                     payloadIndex_ = 0;
                 }
@@ -169,20 +208,20 @@ void Com_Protocol::processReceivedData() {
 
             case ReceiveState::READ_PAYLOAD:
                 receiveBuffer_[payloadIndex_++] = data;
-                if (payloadIndex_ == expectedLength_-6) {
+                if (payloadIndex_ == expectedLength_-8) {
                     // 마지막 2바이트는 CRC
                     receivedCRC_ = (receiveBuffer_[payloadIndex_ - 2] << 8) | 
                                   receiveBuffer_[payloadIndex_ - 1];
                     
                     // CRC 계산을 위한 임시 버퍼 생성
-                    uint8_t* crcBuffer = new uint8_t[expectedLength_ - 2]; // CRC 제외한 기                    
+                    uint8_t* crcBuffer = new uint8_t[expectedLength_ - 2]; // CRC 제외한 크기                    
                     size_t crcIndex = 0;
                     
                     // 수신자 ID 복사
                     crcBuffer[crcIndex++] = (uint8_t)(receiverId_ >> 8);
                     crcBuffer[crcIndex++] = (uint8_t)(receiverId_ & 0xFF);
                     
-                    // 신자 ID 복사
+                    // 송신자 ID 복사
                     crcBuffer[crcIndex++] = (uint8_t)(senderId_ >> 8);
                     crcBuffer[crcIndex++] = (uint8_t)(senderId_ & 0xFF);
                     
@@ -190,11 +229,15 @@ void Com_Protocol::processReceivedData() {
                     crcBuffer[crcIndex++] = (uint8_t)(cmd_ >> 8);
                     crcBuffer[crcIndex++] = (uint8_t)(cmd_ & 0xFF);
                     
+                    // 시퀀스 번호 복사
+                    crcBuffer[crcIndex++] = (uint8_t)(seq_ >> 8);
+                    crcBuffer[crcIndex++] = (uint8_t)(seq_ & 0xFF);
+                    
                     // 페이로드 복사 (있는 경우)
-                    if (expectedLength_ > 8) { // 8 = ID들과 CMD와 CRC 크기
+                    if (expectedLength_ > 10) { // 10 = header(8) + CRC(2)
                         memcpy(crcBuffer + crcIndex, 
                                receiveBuffer_,
-                               expectedLength_ - 8);
+                               expectedLength_ - 10);
                     }
                     
                     // CRC 계산
@@ -265,7 +308,7 @@ uint16_t Com_Protocol::calculateCRC16(const uint8_t* data, size_t length) {
     return crc;
 }
 
-// 클래스 내 새로운 함수 추가
+// processCommand() 함수에 CMD_SYNC 처리 추가
 void Com_Protocol::processCommand(uint16_t senderId, uint16_t receiverId, 
                                 uint16_t cmd, uint8_t* payload, size_t payloadLength) {
     switch (cmd) {
@@ -288,6 +331,19 @@ void Com_Protocol::processCommand(uint16_t senderId, uint16_t receiverId,
         case CMD_STATUS_SYNC:
         	handleStatusSync(senderId, payload, payloadLength);
         	break;
+
+        case CMD_SYNC:
+            if (payloadLength >= 6) {
+                uint32_t timestamp = (payload[0] << 24) | (payload[1] << 16) |
+                                   (payload[2] << 8) | payload[3];
+                uint16_t authToken = (payload[4] << 8) | payload[5];
+                if (authToken == 0xABCD) {
+                    expectedSequenceNumber_ = 0;
+                    // 동기화 성공시 ACK 전송
+                    sendSyncAck(senderId, timestamp);
+                }
+            }
+            break;
 
         default:
             handleUnknownCommand(cmd);
@@ -484,5 +540,34 @@ void Com_Protocol::sendPing(uint16_t targetId) {
     uint8_t pingPayload[] = "PING";
     sendData(targetId, receiverId_, CMD_PING, pingPayload, 4);
     //sendData(1, 2, CMD_PING, pingPayload, 4);
+}
+
+// 새로운 동기화 함수 추가
+void Com_Protocol::sendSync() {
+    uint8_t syncPayload[6];
+    uint32_t timestamp = tick_->getTickCount();
+    syncPayload[0] = static_cast<uint8_t>((timestamp >> 24) & 0xFF);
+    syncPayload[1] = static_cast<uint8_t>((timestamp >> 16) & 0xFF);
+    syncPayload[2] = static_cast<uint8_t>((timestamp >> 8) & 0xFF);
+    syncPayload[3] = static_cast<uint8_t>(timestamp & 0xFF);
+    uint16_t authToken = 0xABCD;
+    syncPayload[4] = static_cast<uint8_t>(authToken >> 8);
+    syncPayload[5] = static_cast<uint8_t>(authToken & 0xFF);
+    
+    sendData(0xFFFF, receiverId_, CMD_SYNC, syncPayload, 6);
+}
+
+// sendSyncAck 함수 추가
+void Com_Protocol::sendSyncAck(uint16_t targetId, uint32_t timestamp) {
+    uint8_t syncAckPayload[6];
+    syncAckPayload[0] = static_cast<uint8_t>((timestamp >> 24) & 0xFF);
+    syncAckPayload[1] = static_cast<uint8_t>((timestamp >> 16) & 0xFF);
+    syncAckPayload[2] = static_cast<uint8_t>((timestamp >> 8) & 0xFF);
+    syncAckPayload[3] = static_cast<uint8_t>(timestamp & 0xFF);
+    uint16_t authToken = 0xABCD;
+    syncAckPayload[4] = static_cast<uint8_t>(authToken >> 8);
+    syncAckPayload[5] = static_cast<uint8_t>(authToken & 0xFF);
+    
+    sendData(targetId, receiverId_, CMD_SYNC_ACK, syncAckPayload, 6);
 }
 

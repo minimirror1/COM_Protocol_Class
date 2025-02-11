@@ -10,6 +10,9 @@
 
 #include "ISerialInterface.h"
 #include "ITick.h"
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
 
 // 파일 전송 단계 정의
 enum class FileTransferStage : uint8_t {
@@ -33,6 +36,12 @@ public:
 
     // ping 요청 함수 추가
     void sendPing(uint16_t targetId);
+
+    // 동기화 요청 함수 추가
+    void sendSync();
+
+    // 동기화 응답 함수 추가
+    void sendSyncAck(uint16_t targetId, uint32_t timestamp);
 
 protected:
     // 사용자가 선택적으로 재정의할 수 있는 가상 함수들, 파싱 전에 호출되는 함수들
@@ -63,7 +72,9 @@ protected:
     static const uint16_t CMD_MAIN_POWER_CONTROL = 0x0100;
     static const uint16_t CMD_MAIN_POWER_CONTROL_ACK = CMD_MAIN_POWER_CONTROL | CMD_ACK_BIT;
 
-
+    // 추가: 동기화 CMD (인증 및 타임스탬프 포함)
+    static const uint16_t CMD_SYNC = 0x0020;
+    static const uint16_t CMD_SYNC_ACK = CMD_SYNC | CMD_ACK_BIT;
 
     // 파일 전송 관련 상수
     static const uint8_t MAX_RETRY_COUNT = 5;
@@ -79,15 +90,22 @@ private:
     static const uint8_t START_SEQUENCE_LENGTH = 4;
     static const uint32_t PACKET_TIMEOUT_MS = 100;
     
+    // 추가: 시퀀스 번호 점프 임계치
+    static const uint16_t SEQUENCE_JUMP_THRESHOLD = 3;
+
+    // 송신 및 수신 시퀀스 번호 관련 변수
+    uint16_t currentSequenceNumber_;    // 송신 시퀀스 번호
+    uint16_t expectedSequenceNumber_;   // 수신측에서 기대하는 다음 시퀀스 번호
+    uint32_t missingPacketCount_;       // 누락된 패킷 수
+
     enum class ReceiveState {
         WAIT_START,
         READ_LENGTH,
         READ_RECEIVER_ID,
         READ_SENDER_ID,
         READ_CMD,
-        READ_PAYLOAD,
-        //VERIFY_CRC,
-        
+        READ_SEQ,         // 추가: 시퀀스 번호 읽기
+        READ_PAYLOAD
     };
     
     ReceiveState currentState_;
@@ -111,6 +129,8 @@ private:
     uint16_t receivedCRC_;
     uint16_t calculatedCRC_;
     uint16_t cmd_;  // CMD 필드
+    
+    uint16_t seq_; // 수신된 시퀀스 번호
     
     void processCommand(uint16_t senderId, uint16_t receiverId, 
                        uint16_t cmd, uint8_t* payload, size_t payloadLength);
