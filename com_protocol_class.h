@@ -85,6 +85,9 @@ protected:
     virtual void handleFileReceive(uint16_t senderId, uint8_t* payload, size_t length);
     //virtual void handleFileReceiveAck(uint16_t senderId, uint8_t* payload, size_t length);
 
+    ITick* tick_;
+    ISerialInterface* serial_;
+
 private:
     static const uint8_t START_MARKER = 0x16;
     static const uint8_t START_SEQUENCE_LENGTH = 4;
@@ -116,8 +119,6 @@ private:
     uint16_t payloadIndex_;
     uint8_t startSequenceCount_;
     
-    ISerialInterface* serial_;
-    ITick* tick_;
     uint8_t* receiveBuffer_;
     size_t bufferLength_;
     
