@@ -88,6 +88,8 @@ protected:
     ITick* tick_;
     ISerialInterface* serial_;
 
+    uint16_t receiverId_;
+
 private:
     static const uint8_t START_MARKER = 0x16;
     static const uint8_t START_SEQUENCE_LENGTH = 4;
@@ -114,7 +116,7 @@ private:
     ReceiveState currentState_;
     uint32_t lastReceiveTime_;
     uint16_t expectedLength_;
-    uint16_t receiverId_;
+    
     uint16_t senderId_;
     uint16_t payloadIndex_;
     uint8_t startSequenceCount_;
