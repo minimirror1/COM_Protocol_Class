@@ -323,15 +323,9 @@ void Com_Protocol::processCommand(uint16_t senderId, uint16_t receiverId,
         case CMD_CONFIG:
             handleConfig(senderId, payload, payloadLength);
             break;
-            
-        case CMD_MAIN_POWER_CONTROL:
-        	handleMainPowerControl(senderId, payload, payloadLength);
-        	break;
-
         case CMD_STATUS_SYNC:
         	handleStatusSync(senderId, payload, payloadLength);
         	break;
-
         case CMD_SYNC:
             if (payloadLength >= 6) {
                 uint32_t timestamp = (payload[0] << 24) | (payload[1] << 16) |
@@ -343,8 +337,13 @@ void Com_Protocol::processCommand(uint16_t senderId, uint16_t receiverId,
                     sendSyncAck(senderId, timestamp);
                 }
             }
-            break;
-
+            break;                        
+        case CMD_MAIN_POWER_CONTROL:
+        	handleMainPowerControl(senderId, payload, payloadLength);
+        	break;
+        case CMD_PLAY_CONTROL:
+        	handlePlayControl(senderId, payload, payloadLength);
+        	break;
         default:
             handleUnknownCommand(cmd);
             break;
@@ -445,6 +444,43 @@ void Com_Protocol::setMainPower(uint8_t powerFlag){
     }
 }
 
+void Com_Protocol::handlePlayControl(uint16_t senderId, uint8_t* payload, size_t length) {
+    // 페이로드 길이 체크
+    if (length < 1) return;
+    // todo : 각 switch 내부 처리 추가, currentPlayState_ 에 상태 반환환
+    // 페이로드에서 PlayControl 상태 추출
+    PlayControlState playState = static_cast<PlayControlState>(payload[0]);    
+    // 상태에 따른 처리
+    switch (playState) {
+        case PlayControlState::PLAY_ONE:
+            // 1회 재생
+            break;
+            
+        case PlayControlState::PLAY_REPEAT:
+            // 반복 재생
+            break;
+            
+        case PlayControlState::PAUSE:
+            // 일시정지
+            break;            
+
+        case PlayControlState::STOP:
+            // 정지
+            break;
+
+        default:
+            // 잘못된 상태값 수신
+            return;
+    }
+    
+    // 응답 전송
+    uint8_t response[1];
+    uint8_t currentPlayState_ = 0;
+
+    response[0] = static_cast<uint8_t>(currentPlayState_);    
+    
+    sendData(senderId, receiverId_, CMD_PLAY_CONTROL_ACK, response, 1);
+}
 
 void Com_Protocol::resetFileTransferContext() {
     memset(&fileContext_, 0, sizeof(FileTransferContext));

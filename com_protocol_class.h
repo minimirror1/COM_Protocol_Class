@@ -22,6 +22,14 @@ enum class FileTransferStage : uint8_t {
 	VERIFY_CHECKSUM = 4      // 체크섬 검증
 };
 
+// PlayControl 상태 정의
+enum class PlayControlState : uint8_t {
+    PLAY_ONE = 0x01,
+    PLAY_REPEAT = 0x02,    
+    PAUSE = 0x03,
+    STOP = 0x04    
+};
+
 class Com_Protocol {
 public:
     // 생성자 매개변수 추가
@@ -44,37 +52,48 @@ public:
     void sendSyncAck(uint16_t targetId, uint32_t timestamp);
 
 protected:
-    // 사용자가 선택적으로 재정의할 수 있는 가상 함수들, 파싱 전에 호출되는 함수들
-    virtual void handlePing(uint16_t senderId, uint8_t* payload, size_t length);
+    // 파싱 전 : 사용자가 선택적으로 재정의할 수 있는 가상 함수들, 파싱 전에 호출되는 함수들
+    /* 네트워크 0x0000 ~ 0x00FF */
+    virtual void handlePing(uint16_t senderId, uint8_t* payload, size_t length);//CMD_PONG
     virtual void handleData(uint16_t senderId, uint8_t* payload, size_t length) {}
     virtual void handleConfig(uint16_t senderId, uint8_t* payload, size_t length) {}
-
-    virtual void handleStatusSync(uint16_t senderId, uint8_t* payload, size_t length);
-
-    virtual void handleMainPowerControl(uint16_t senderId, uint8_t* payload, size_t length);
+    // 상태 동기화
+    virtual void handleStatusSync(uint16_t senderId, uint8_t* payload, size_t length);//CMD_STATUS_SYNC
+    // 제어
+    virtual void handleMainPowerControl(uint16_t senderId, uint8_t* payload, size_t length);//CMD_MAIN_POWER_CONTROL
+    virtual void handlePlayControl(uint16_t senderId, uint8_t* payload, size_t length);//CMD_PLAY_CONTROL
     virtual void handleUnknownCommand(uint16_t cmd) {}
 
-    // 파싱 후 호출되는 함수
-    virtual void setMainPower(uint8_t powerFlag);
+    
+    // 파싱 후 : 호출되는 함수
+    virtual void setMainPower(uint8_t powerFlag);//CMD_MAIN_POWER_CONTROL
+   
 
     // 명령어 정의
-
+    /* 네트워크 0x0000 ~ 0x00FF */
     static const uint16_t CMD_ACK_BIT = 0x8000;
     static const uint16_t CMD_PING = 0x0001;
     static const uint16_t CMD_PONG = CMD_PING | CMD_ACK_BIT;  // PONG 응답용 명령어 추가
     static const uint16_t CMD_FILE_RECEIVE = 0x0002;  // CMD_FILE을 CMD_FILE_RECEIVE로 변경
     static const uint16_t CMD_FILE_RECEIVE_ACK = CMD_FILE_RECEIVE | CMD_ACK_BIT;
     static const uint16_t CMD_CONFIG = 0x0003;
-
+    // 상태 동기화
     static const uint16_t CMD_STATUS_SYNC = 0x0010;
     static const uint16_t CMD_STATUS_SYNC_ACK = CMD_STATUS_SYNC | CMD_ACK_BIT;
+    // 새 세션 연결 (인증 및 타임스탬프 포함)
+    static const uint16_t CMD_SYNC = 0x0020;
+    static const uint16_t CMD_SYNC_ACK = CMD_SYNC | CMD_ACK_BIT;
 
+
+    /* 제어 0x0100 ~ 0x01FF */
     static const uint16_t CMD_MAIN_POWER_CONTROL = 0x0100;
     static const uint16_t CMD_MAIN_POWER_CONTROL_ACK = CMD_MAIN_POWER_CONTROL | CMD_ACK_BIT;
 
-    // 추가: 동기화 CMD (인증 및 타임스탬프 포함)
-    static const uint16_t CMD_SYNC = 0x0020;
-    static const uint16_t CMD_SYNC_ACK = CMD_SYNC | CMD_ACK_BIT;
+    static const uint16_t CMD_PLAY_CONTROL = 0x0110;
+    static const uint16_t CMD_PLAY_CONTROL_ACK = CMD_PLAY_CONTROL | CMD_ACK_BIT;
+    
+
+
 
     // 파일 전송 관련 상수
     static const uint8_t MAX_RETRY_COUNT = 5;
