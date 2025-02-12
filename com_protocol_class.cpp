@@ -371,13 +371,16 @@ void Com_Protocol::handleStatusSync(uint16_t senderId, uint8_t* payload, size_t 
     uint16_t voltage = 3000; // 30.00V
     // 전류
     uint16_t current = 4000; // 40.00A
+    // 모션 시간
+    uint32_t motionCurrentTime = 10000; // 10.00s
+    uint32_t motionEndTime = 20000; // 20.00s
     /************************************************* */
 
 
 
     /*패킷 생성*/
-    // 응답 패킷 준비 (11byte)
-    uint8_t responsePayload[11] = {0,};
+    // 응답 패킷 준비 (15byte)
+    uint8_t responsePayload[15] = {0,};
     
     
     // 시간 변환 (ms -> 시/분/초)
@@ -403,9 +406,15 @@ void Com_Protocol::handleStatusSync(uint16_t senderId, uint8_t* payload, size_t 
     responsePayload[8] = voltage & 0xFF;
     responsePayload[9] = (current >> 8) & 0xFF;
     responsePayload[10] = current & 0xFF;
+
+    // 모션 시간 입력
+    responsePayload[11] = (motionCurrentTime >> 8) & 0xFF;
+    responsePayload[12] = motionCurrentTime & 0xFF;
+    responsePayload[13] = (motionEndTime >> 8) & 0xFF;
+    responsePayload[14] = motionEndTime & 0xFF;
     
     // 응답 전송
-    sendData(senderId, receiverId_, CMD_STATUS_SYNC_ACK, responsePayload, 11);
+    sendData(senderId, receiverId_, CMD_STATUS_SYNC_ACK, responsePayload, 15);
 }
 
 void Com_Protocol::handleMainPowerControl(uint16_t senderId, uint8_t* payload, size_t length){
