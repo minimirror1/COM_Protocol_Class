@@ -30,6 +30,16 @@ enum class PlayControlState : uint8_t {
     STOP = 0x04    
 };
 
+// 모터 타입 정의
+enum class MotorType : uint8_t {
+    MOTOR_NULL = 0,
+    MOTOR_RC = 1,
+    MOTOR_AC = 2,
+    MOTOR_BL = 3,
+    MOTOR_ZER = 4,
+    MOTOR_DXL = 5
+};
+
 class Com_Protocol {
 public:
     // 생성자 매개변수 추가
