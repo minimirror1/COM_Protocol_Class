@@ -62,11 +62,13 @@ protected:
     // 제어
     virtual void handleMainPowerControl(uint16_t senderId, uint8_t* payload, size_t length);//CMD_MAIN_POWER_CONTROL
     virtual void handlePlayControl(uint16_t senderId, uint8_t* payload, size_t length);//CMD_PLAY_CONTROL
+    void handleJogMoveCwCcw(uint16_t senderId, uint8_t* payload, size_t length);//CMD_JOG_MOVE_CW_CCW
     virtual void handleUnknownCommand(uint16_t cmd) {}
 
     
     // 파싱 후 : 호출되는 함수
     virtual void setMainPower(uint8_t powerFlag);//CMD_MAIN_POWER_CONTROL
+    virtual void setJogMoveCwCcw(uint8_t id, uint8_t subId, uint32_t speed, uint8_t direction);//CMD_JOG_MOVE_CW_CCW
    
 
     // 명령어 정의
@@ -92,7 +94,8 @@ protected:
     static const uint16_t CMD_PLAY_CONTROL = 0x0110;
     static const uint16_t CMD_PLAY_CONTROL_ACK = CMD_PLAY_CONTROL | CMD_ACK_BIT;
     
-
+    static const uint16_t CMD_JOG_MOVE_CW_CCW = 0x0120;
+    static const uint16_t CMD_JOG_MOVE_CW_CCW_ACK = CMD_JOG_MOVE_CW_CCW | CMD_ACK_BIT;
 
 
     // 파일 전송 관련 상수
