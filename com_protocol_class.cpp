@@ -383,10 +383,10 @@ void Com_Protocol::handleStatusSync(uint16_t senderId, uint8_t* payload, size_t 
     uint32_t motionEndTime = 20000; // 20.00s
 
     // 마지막 에러
-    uint8_t f_error = 0;
-    uint8_t can_id = 0;
-    uint8_t can_sub_id = 0;    
-    char error_code_str[8] = {0}; // 8바이트 제한의 에러 코드 문자열
+    uint8_t f_error = 0;            // 0: 정상, 1: 에러
+    uint8_t can_id = 0;             // CAN ID
+    uint8_t can_sub_id = 0;         // CAN SUB ID
+    char error_code_str[8] = {0};   // 8바이트 제한의 에러 코드 문자열
     /************************************************* */
 
 
