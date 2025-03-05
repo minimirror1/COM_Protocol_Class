@@ -344,6 +344,9 @@ void Com_Protocol::processCommand(uint16_t senderId, uint16_t receiverId,
         case CMD_PLAY_CONTROL:
         	handlePlayControl(senderId, payload, payloadLength);
         	break;
+        case CMD_JOG_MOVE_CW_CCW:
+        	handleJogMoveCwCcw(senderId, payload, payloadLength);
+        	break;
         default:
             handleUnknownCommand(cmd);
             break;
@@ -498,6 +501,55 @@ void Com_Protocol::handlePlayControl(uint16_t senderId, uint8_t* payload, size_t
     
     sendData(senderId, receiverId_, CMD_PLAY_CONTROL_ACK, response, 1);
 }
+
+void Com_Protocol::handleJogMoveCwCcw(uint16_t senderId, uint8_t* payload, size_t length){
+    // 페이로드 길이 체크
+    if (length < 7) return;  // 최소 7바이트 필요 (id, sub-id, speed[4], direction)
+
+    uint8_t id = payload[0];
+    uint8_t subId = payload[1];
+    
+    // speed 값 추출 (4바이트)
+    uint32_t speed = 0;
+    speed |= static_cast<uint32_t>(payload[2]) << 24;
+    speed |= static_cast<uint32_t>(payload[3]) << 16;
+    speed |= static_cast<uint32_t>(payload[4]) << 8;
+    speed |= static_cast<uint32_t>(payload[5]);
+    
+    uint8_t direction = payload[6];
+    // 방향 값 검증
+    if (direction > 1) return;  // 0(CCW) 또는 1(CW)만 유효
+
+    /* 조그 이동 로직 사용자 재정의 */
+    setJogMoveCwCcw(id, subId, speed, direction);
+
+    // 응답 없음
+    /*
+    uint8_t response[7];
+    response[0] = id;
+    response[1] = subId;
+    response[2] = (speed >> 24) & 0xFF;
+    response[3] = (speed >> 16) & 0xFF;
+    response[4] = (speed >> 8) & 0xFF;
+    response[5] = speed & 0xFF;
+    response[6] = direction;
+    
+    sendData(senderId, receiverId_, CMD_JOG_MOVE_CW_CCW_ACK, response, 7);
+    */
+}
+
+void Com_Protocol::setJogMoveCwCcw(uint8_t id, uint8_t subId, uint32_t speed, uint8_t direction){
+    // 조그 이동 로직 구현
+    // - direction이 0이면 반시계 방향(CCW) 이동
+    // - direction이 1이면 시계 방향(CW) 이동
+    
+    // TODO: 실제 모터 제어 로직 구현
+    // 여기에 id, subId, speed, direction을 사용하여 모터 제어 로직 추가
+}
+
+
+
+
 
 void Com_Protocol::resetFileTransferContext() {
     memset(&fileContext_, 0, sizeof(FileTransferContext));
