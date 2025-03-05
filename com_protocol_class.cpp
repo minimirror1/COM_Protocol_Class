@@ -381,13 +381,19 @@ void Com_Protocol::handleStatusSync(uint16_t senderId, uint8_t* payload, size_t 
     // 모션 시간
     uint32_t motionCurrentTime = 10000; // 10.00s
     uint32_t motionEndTime = 20000; // 20.00s
+
+    // 마지막 에러
+    uint8_t f_error = 0;
+    uint8_t can_id = 0;
+    uint8_t can_sub_id = 0;    
+    char error_code_str[8] = {0}; // 8바이트 제한의 에러 코드 문자열
     /************************************************* */
 
 
 
     /*패킷 생성*/
-    // 응답 패킷 준비 (17byte)
-    uint8_t responsePayload[17] = {0,};
+    // 응답 패킷 준비 (28byte로 확장)
+    uint8_t responsePayload[28] = {0,};
     
     
     // 시간 변환 (ms -> 시/분/초)
@@ -424,8 +430,18 @@ void Com_Protocol::handleStatusSync(uint16_t senderId, uint8_t* payload, size_t 
     responsePayload[15] = (motionEndTime >> 8) & 0xFF;
     responsePayload[16] = motionEndTime & 0xFF;
     
-    // 응답 전송
-    sendData(senderId, receiverId_, CMD_STATUS_SYNC_ACK, responsePayload, 17);
+    // 마지막 에러 입력
+    responsePayload[17] = f_error;
+    responsePayload[18] = can_id;
+    responsePayload[19] = can_sub_id;
+    
+    // error_code_str을 responsePayload에 복사 (최대 8바이트)
+    for (int i = 0; i < 8 && i < strlen(error_code_str); i++) {
+        responsePayload[20 + i] = static_cast<uint8_t>(error_code_str[i]);
+    }
+    
+    // 응답 전송 (크기를 28바이트로 변경)
+    sendData(senderId, receiverId_, CMD_STATUS_SYNC_ACK, responsePayload, 28);
 }
 
 void Com_Protocol::handleMainPowerControl(uint16_t senderId, uint8_t* payload, size_t length){
