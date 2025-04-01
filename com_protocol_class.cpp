@@ -326,6 +326,9 @@ void Com_Protocol::processCommand(uint16_t senderId, uint16_t receiverId,
         case CMD_STATUS_SYNC:
         	handleStatusSync(senderId, payload, payloadLength);
         	break;
+        case CMD_ID_SCAN:
+            handleIdScan(senderId, payload, payloadLength);
+            break;
         case CMD_SYNC:
             if (payloadLength >= 6) {
                 uint32_t timestamp = (payload[0] << 24) | (payload[1] << 16) |
@@ -445,6 +448,23 @@ void Com_Protocol::handleStatusSync(uint16_t senderId, uint8_t* payload, size_t 
     // 응답 전송 (크기를 28바이트로 변경)
     sendData(senderId, receiverId_, CMD_STATUS_SYNC_ACK, responsePayload, 29);
 }
+
+void Com_Protocol::handleIdScan(uint16_t senderId, uint8_t* payload, size_t length){
+    // 페이로드 유효성 검사 (1바이트 ID만 필요)
+    if (length < 1 || !payload) {
+        return;
+    }
+
+    const uint8_t SCAN_ID = payload[0];     // 스캔 요청된 ID (1바이트)
+    const uint8_t MY_ID = 0x01;             // 현재 장치의 ID (1바이트)
+    
+    // ID 매칭 여부 확인 및 응답 전송
+    if (SCAN_ID == MY_ID) {
+        const uint8_t response = MY_ID;      // 1바이트 응답 데이터
+        sendData(senderId, receiverId_, CMD_ID_SCAN_ACK, &response, 1);
+    }    
+}
+
 
 void Com_Protocol::handleMainPowerControl(uint16_t senderId, uint8_t* payload, size_t length){
     // 페이로드 길이 체크
@@ -663,6 +683,12 @@ void Com_Protocol::sendPing(uint16_t targetId) {
     uint8_t pingPayload[] = "PING";
     sendData(targetId, receiverId_, CMD_PING, pingPayload, 4);
     //sendData(1, 2, CMD_PING, pingPayload, 4);
+}
+
+void Com_Protocol::sendIdScan(uint16_t targetId){
+    uint8_t idScanPayload[1];
+    idScanPayload[0] = 0x01;
+    sendData(targetId, receiverId_, CMD_ID_SCAN, idScanPayload, 1);
 }
 
 // 새로운 동기화 함수 추가

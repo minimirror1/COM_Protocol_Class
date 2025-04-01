@@ -52,14 +52,12 @@ public:
     bool isDataAvailable() const;
     void processReceivedData();
 
-    // ping 요청 함수 추가
-    void sendPing(uint16_t targetId);
-
-    // 동기화 요청 함수 추가
-    void sendSync();
-
-    // 동기화 응답 함수 추가
-    void sendSyncAck(uint16_t targetId, uint32_t timestamp);
+    
+    void sendPing(uint16_t targetId);// ping 요청 함수
+    void sendIdScan(uint16_t targetId);// id 스캔 요청 함수
+    
+    void sendSync();// 동기화 요청 함수        
+    void sendSyncAck(uint16_t targetId, uint32_t timestamp);// 동기화 응답 함수
 
 protected:
     // 파싱 전 : 사용자가 선택적으로 재정의할 수 있는 가상 함수들, 파싱 전에 호출되는 함수들
@@ -67,6 +65,8 @@ protected:
     virtual void handlePing(uint16_t senderId, uint8_t* payload, size_t length);//CMD_PONG
     virtual void handleData(uint16_t senderId, uint8_t* payload, size_t length) {}
     virtual void handleConfig(uint16_t senderId, uint8_t* payload, size_t length) {}
+    virtual void handleIdScan(uint16_t senderId, uint8_t* payload, size_t length);//CMD_ID_SCAN
+
     // 상태 동기화
     virtual void handleStatusSync(uint16_t senderId, uint8_t* payload, size_t length);//CMD_STATUS_SYNC
     // 제어
@@ -89,6 +89,9 @@ protected:
     static const uint16_t CMD_FILE_RECEIVE = 0x0002;  // CMD_FILE을 CMD_FILE_RECEIVE로 변경
     static const uint16_t CMD_FILE_RECEIVE_ACK = CMD_FILE_RECEIVE | CMD_ACK_BIT;
     static const uint16_t CMD_CONFIG = 0x0003;
+    static const uint16_t CMD_ID_SCAN = 0x0004;
+    static const uint16_t CMD_ID_SCAN_ACK = CMD_ID_SCAN | CMD_ACK_BIT;
+
     // 상태 동기화
     static const uint16_t CMD_STATUS_SYNC = 0x0010;
     static const uint16_t CMD_STATUS_SYNC_ACK = CMD_STATUS_SYNC | CMD_ACK_BIT;
