@@ -94,12 +94,27 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
 ## 명령어 코드
 
-| 명령어     | 코드   | 설명                       |
-| ---------- | ------ | -------------------------- |
-| CMD_PING   | 0x0001 | 연결 상태 확인용 PING 요청 |
-| CMD_PONG   | 0x8001 | PING에 대한 응답           |
-| CMD_DATA   | 0x0002 | 일반 데이터 전송           |
-| CMD_CONFIG | 0x0003 | 설정 데이터 전송           |
+| 명령어                    | 코드   | 설명                                    |
+|--------------------------|--------|-----------------------------------------|
+| CMD_PING                 | 0x0001 | 연결 상태 확인용 PING 요청              |
+| CMD_PONG                 | 0x8001 | PING에 대한 응답                        |
+| CMD_FILE_RECEIVE         | 0x0002 | 파일 수신 요청                          |
+| CMD_FILE_RECEIVE_ACK     | 0x8002 | 파일 수신 요청에 대한 응답              |
+| CMD_CONFIG               | 0x0003 | 설정 데이터 전송                        |
+| CMD_ID_SCAN              | 0x0004 | 장치 ID 스캔 요청                       |
+| CMD_ID_SCAN_ACK          | 0x8004 | ID 스캔 요청에 대한 응답                |
+| CMD_STATUS_SYNC          | 0x0010 | 상태 동기화 요청                        |
+| CMD_STATUS_SYNC_ACK      | 0x8010 | 상태 동기화 요청에 대한 응답            |
+| CMD_SYNC                 | 0x0020 | 시퀀스 동기화 요청                      |
+| CMD_SYNC_ACK             | 0x8020 | 시퀀스 동기화 요청에 대한 응답          |
+| CMD_MAIN_POWER_CONTROL   | 0x0100 | 메인 전원 제어 요청                     |
+| CMD_MAIN_POWER_CONTROL_ACK| 0x8100 | 메인 전원 제어 요청에 대한 응답         |
+| CMD_PLAY_CONTROL         | 0x0110 | 재생 제어 요청                          |
+| CMD_PLAY_CONTROL_ACK     | 0x8110 | 재생 제어 요청에 대한 응답              |
+| CMD_JOG_MOVE_CW_CCW      | 0x0120 | 조그 이동 제어 요청                     |
+| CMD_JOG_MOVE_CW_CCW_ACK  | 0x8120 | 조그 이동 제어 요청에 대한 응답         |
+
+* 참고: ACK 명령어는 원본 명령어 코드에 0x8000을 더한 값입니다.
 
 ## 주요 클래스 메서드
 
