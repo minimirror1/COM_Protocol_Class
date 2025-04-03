@@ -43,7 +43,7 @@ enum class MotorType : uint8_t {
 class Com_Protocol {
 public:
     // 생성자 매개변수 추가
-    Com_Protocol(ISerialInterface* serial, ITick* tick);
+    Com_Protocol(ISerialInterface* serial, ITick* tick, uint16_t my_id);
     virtual ~Com_Protocol();
 
     void sendData(uint16_t receiverId, uint16_t senderId, uint16_t cmd,
@@ -58,6 +58,9 @@ public:
     
     void sendSync();// 동기화 요청 함수        
     void sendSyncAck(uint16_t targetId, uint32_t timestamp);// 동기화 응답 함수
+
+    // my_id getter 추가
+    uint16_t getMyId() const { return receiverId_; }
 
 protected:
     // 파싱 전 : 사용자가 선택적으로 재정의할 수 있는 가상 함수들, 파싱 전에 호출되는 함수들

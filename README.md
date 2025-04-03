@@ -47,7 +47,7 @@ int main(void)
     // 프로토콜 초기화
 
     STM32TickImpl tick; /*****필수*****/ //serial 내부에서 사용될 tick 인스턴스 STM32 환경에서 사용
-	Com_Protocol protocol(&serial, &tick); /*****필수*****///시리얼 인터페이스와 tick 인스턴스 전달
+	Com_Protocol protocol(&serial, &tick, 0x0001); /*****필수*****///시리얼 인터페이스, tick 인스턴스, 장치 ID 전달
 
 	while(1){
 

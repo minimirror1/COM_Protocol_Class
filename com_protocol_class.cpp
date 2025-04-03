@@ -10,9 +10,10 @@
 #include "ISerialInterface.h"
 
 // 생성자: 멤버 변수 초기화 (새로운 시퀀스 관련 변수 포함)
-Com_Protocol::Com_Protocol(ISerialInterface* serial, ITick* tick) :
+Com_Protocol::Com_Protocol(ISerialInterface* serial, ITick* tick, uint16_t my_id) :
     serial_(serial), 
     tick_(tick),
+    receiverId_(my_id),  // my_id로 receiverId_ 초기화
     receiveBuffer_(nullptr),
     bufferLength_(256),
     currentSequenceNumber_(0),
@@ -154,7 +155,14 @@ void Com_Protocol::processReceivedData() {
             case ReceiveState::READ_RECEIVER_ID:
                 receiveBuffer_[payloadIndex_++] = data;
                 if (payloadIndex_ == 2) {
-                    receiverId_ = (receiveBuffer_[0] << 8) | receiveBuffer_[1];
+                    uint16_t receivedId = (receiveBuffer_[0] << 8) | receiveBuffer_[1];
+                    // 수신자 ID가 my_id와 일치하는지 확인
+                    if (receivedId != receiverId_ && receivedId != 0xFFFF) {  // 0xFFFF는 브로드캐스트 주소
+                        currentState_ = ReceiveState::WAIT_START;
+                        startSequenceCount_ = 0;
+                        payloadIndex_ = 0;
+                        continue;
+                    }
                     currentState_ = ReceiveState::READ_SENDER_ID;
                     payloadIndex_ = 0;
                 }
