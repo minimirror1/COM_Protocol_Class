@@ -464,12 +464,11 @@ void Com_Protocol::handleIdScan(uint16_t senderId, uint8_t* payload, size_t leng
         return;
     }
 
-    const uint8_t SCAN_ID = payload[0];     // 스캔 요청된 ID (1바이트)
-    const uint8_t MY_ID = 0x01;             // 현재 장치의 ID (1바이트)
+    const uint8_t SCAN_ID = payload[0];     // 스캔 요청된 ID (1바이트)    
     
     // ID 매칭 여부 확인 및 응답 전송
-    if (SCAN_ID == MY_ID) {
-        const uint8_t response = MY_ID;      // 1바이트 응답 데이터
+    if (SCAN_ID == my_id_) {
+        const uint8_t response = my_id_;      // 1바이트 응답 데이터
         sendData(senderId, my_id_, CMD_ID_SCAN_ACK, &response, 1);
     }    
 }
