@@ -468,8 +468,8 @@ void Com_Protocol::handleIdScan(uint16_t senderId, uint8_t* payload, size_t leng
     
     // ID 매칭 여부 확인 및 응답 전송
     if (SCAN_ID == my_id_) {
-        const uint8_t response = my_id_;      // 1바이트 응답 데이터
-        sendData(senderId, my_id_, CMD_ID_SCAN_ACK, &response, 2);
+        const uint16_t response = my_id_;      // 2바이트 응답 데이터
+        sendData(senderId, my_id_, CMD_ID_SCAN_ACK, (uint8_t *)&response, 2);
     }    
 }
 
