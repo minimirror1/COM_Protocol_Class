@@ -60,7 +60,7 @@ public:
     void sendSyncAck(uint16_t targetId, uint32_t timestamp);// 동기화 응답 함수
 
     // my_id getter 추가
-    uint16_t getMyId() const { return receiverId_; }
+    uint16_t getMyId() const { return my_id_; }
 
 protected:
     // 파싱 전 : 사용자가 선택적으로 재정의할 수 있는 가상 함수들, 파싱 전에 호출되는 함수들
@@ -126,7 +126,7 @@ protected:
     ITick* tick_;
     ISerialInterface* serial_;
 
-    uint16_t receiverId_;
+    uint16_t my_id_;
 
 private:
     static const uint8_t START_MARKER = 0x16;
@@ -156,6 +156,7 @@ private:
     uint16_t expectedLength_;
     
     uint16_t senderId_;
+    uint16_t receivedId_;
     uint16_t payloadIndex_;
     uint8_t startSequenceCount_;
     

@@ -13,7 +13,7 @@
 Com_Protocol::Com_Protocol(ISerialInterface* serial, ITick* tick, uint16_t my_id) :
     serial_(serial), 
     tick_(tick),
-    receiverId_(my_id),  // my_id로 receiverId_ 초기화
+    my_id_(my_id),  // my_id로 my_id_ 초기화
     receiveBuffer_(nullptr),
     bufferLength_(256),
     currentSequenceNumber_(0),
@@ -157,12 +157,13 @@ void Com_Protocol::processReceivedData() {
                 if (payloadIndex_ == 2) {
                     uint16_t receivedId = (receiveBuffer_[0] << 8) | receiveBuffer_[1];
                     // 수신자 ID가 my_id와 일치하는지 확인
-                    if (receivedId != receiverId_ && receivedId != 0xFFFF) {  // 0xFFFF는 브로드캐스트 주소
-                        currentState_ = ReceiveState::WAIT_START;
+                    if (receivedId != my_id_ && receivedId != 0xFFFF) {  // 0xFFFF는 브로드캐스트 주소
+                    	currentState_ = ReceiveState::WAIT_START;
                         startSequenceCount_ = 0;
                         payloadIndex_ = 0;
                         continue;
                     }
+                    receivedId_ = receivedId;
                     currentState_ = ReceiveState::READ_SENDER_ID;
                     payloadIndex_ = 0;
                 }
@@ -226,8 +227,8 @@ void Com_Protocol::processReceivedData() {
                     size_t crcIndex = 0;
                     
                     // 수신자 ID 복사
-                    crcBuffer[crcIndex++] = (uint8_t)(receiverId_ >> 8);
-                    crcBuffer[crcIndex++] = (uint8_t)(receiverId_ & 0xFF);
+                    crcBuffer[crcIndex++] = (uint8_t)(receivedId_ >> 8);
+                    crcBuffer[crcIndex++] = (uint8_t)(receivedId_ & 0xFF);
                     
                     // 송신자 ID 복사
                     crcBuffer[crcIndex++] = (uint8_t)(senderId_ >> 8);
@@ -254,7 +255,7 @@ void Com_Protocol::processReceivedData() {
                     
                     if (calculatedCRC_ == receivedCRC_) {
                         // CRC 검증 성공
-                        processCommand(senderId_, receiverId_, cmd_, 
+                        processCommand(senderId_, my_id_, cmd_, 
                                     receiveBuffer_, expectedLength_ - 8);
                     } else {
                         // CRC 검증 실패
@@ -369,7 +370,7 @@ void Com_Protocol::handlePing(uint16_t senderId, uint8_t* payload, size_t length
     uint8_t pongPayload[] = "PONG";
     
     // PONG 메시지 전송 (송신자와 수신자 ID를 교체하여 응답)
-    sendData(senderId, receiverId_, CMD_PONG, pongPayload, 4);
+    sendData(senderId, my_id_, CMD_PONG, pongPayload, 4);
 }
 
 void Com_Protocol::handleStatusSync(uint16_t senderId, uint8_t* payload, size_t length) {
@@ -454,7 +455,7 @@ void Com_Protocol::handleStatusSync(uint16_t senderId, uint8_t* payload, size_t 
     }
     
     // 응답 전송 (크기를 28바이트로 변경)
-    sendData(senderId, receiverId_, CMD_STATUS_SYNC_ACK, responsePayload, 29);
+    sendData(senderId, my_id_, CMD_STATUS_SYNC_ACK, responsePayload, 29);
 }
 
 void Com_Protocol::handleIdScan(uint16_t senderId, uint8_t* payload, size_t length){
@@ -469,7 +470,7 @@ void Com_Protocol::handleIdScan(uint16_t senderId, uint8_t* payload, size_t leng
     // ID 매칭 여부 확인 및 응답 전송
     if (SCAN_ID == MY_ID) {
         const uint8_t response = MY_ID;      // 1바이트 응답 데이터
-        sendData(senderId, receiverId_, CMD_ID_SCAN_ACK, &response, 1);
+        sendData(senderId, my_id_, CMD_ID_SCAN_ACK, &response, 1);
     }    
 }
 
@@ -498,7 +499,7 @@ void Com_Protocol::handleMainPowerControl(uint16_t senderId, uint8_t* payload, s
     uint8_t ackPayload[1];
     ackPayload[0] = powerFlag;
 
-    sendData(senderId, receiverId_, CMD_MAIN_POWER_CONTROL_ACK, ackPayload, 1);
+    sendData(senderId, my_id_, CMD_MAIN_POWER_CONTROL_ACK, ackPayload, 1);
 
 }
 
@@ -545,7 +546,7 @@ void Com_Protocol::handlePlayControl(uint16_t senderId, uint8_t* payload, size_t
 
     response[0] = static_cast<uint8_t>(currentPlayState_);    
     
-    sendData(senderId, receiverId_, CMD_PLAY_CONTROL_ACK, response, 1);
+    sendData(senderId, my_id_, CMD_PLAY_CONTROL_ACK, response, 1);
 }
 
 void Com_Protocol::handleJogMoveCwCcw(uint16_t senderId, uint8_t* payload, size_t length){
@@ -580,7 +581,7 @@ void Com_Protocol::handleJogMoveCwCcw(uint16_t senderId, uint8_t* payload, size_
     response[5] = speed & 0xFF;
     response[6] = direction;
     
-    sendData(senderId, receiverId_, CMD_JOG_MOVE_CW_CCW_ACK, response, 7);
+    sendData(senderId, my_id_, CMD_JOG_MOVE_CW_CCW_ACK, response, 7);
     */
 }
 
@@ -680,23 +681,23 @@ void Com_Protocol::sendFileReceiveAck(uint16_t receiverId, FileTransferStage sta
     
     if (data != 0) {
         *reinterpret_cast<uint32_t*>(response + 2) = data;
-        sendData(receiverId, receiverId_, CMD_FILE_RECEIVE_ACK, response, 6);
+        sendData(receiverId, my_id_, CMD_FILE_RECEIVE_ACK, response, 6);
     } else {
-        sendData(receiverId, receiverId_, CMD_FILE_RECEIVE_ACK, response, 2);
+        sendData(receiverId, my_id_, CMD_FILE_RECEIVE_ACK, response, 2);
     }
 }
 
 // ping 요청 함수 구현
 void Com_Protocol::sendPing(uint16_t targetId) {
     uint8_t pingPayload[] = "PING";
-    sendData(targetId, receiverId_, CMD_PING, pingPayload, 4);
+    sendData(targetId, my_id_, CMD_PING, pingPayload, 4);
     //sendData(1, 2, CMD_PING, pingPayload, 4);
 }
 
 void Com_Protocol::sendIdScan(uint16_t targetId){
     uint8_t idScanPayload[1];
-    idScanPayload[0] = 0x01;
-    sendData(targetId, receiverId_, CMD_ID_SCAN, idScanPayload, 1);
+    idScanPayload[0] = my_id_;  // 현재 장치의 ID (1바이트로 간주)
+    sendData(targetId, my_id_, CMD_ID_SCAN, idScanPayload, 1);
 }
 
 // 새로운 동기화 함수 추가
@@ -711,7 +712,7 @@ void Com_Protocol::sendSync() {
     syncPayload[4] = static_cast<uint8_t>(authToken >> 8);
     syncPayload[5] = static_cast<uint8_t>(authToken & 0xFF);
     
-    sendData(0xFFFF, receiverId_, CMD_SYNC, syncPayload, 6);
+    sendData(0xFFFF, my_id_, CMD_SYNC, syncPayload, 6);
 }
 
 // sendSyncAck 함수 추가
@@ -725,6 +726,6 @@ void Com_Protocol::sendSyncAck(uint16_t targetId, uint32_t timestamp) {
     syncAckPayload[4] = static_cast<uint8_t>(authToken >> 8);
     syncAckPayload[5] = static_cast<uint8_t>(authToken & 0xFF);
     
-    sendData(targetId, receiverId_, CMD_SYNC_ACK, syncAckPayload, 6);
+    sendData(targetId, my_id_, CMD_SYNC_ACK, syncAckPayload, 6);
 }
 
