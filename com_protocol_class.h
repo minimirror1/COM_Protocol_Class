@@ -61,6 +61,7 @@ public:
 
     // my_id getter 추가
     uint16_t getMyId() const { return my_id_; }
+    void setMyId(uint16_t id) { my_id_ = id; }  
 
 protected:
     // 파싱 전 : 사용자가 선택적으로 재정의할 수 있는 가상 함수들, 파싱 전에 호출되는 함수들
