@@ -19,9 +19,9 @@
 #ifdef QT_PLATFORM
 int main() {
     QtSerialImpl serial("COM1", 115200);
+    QtTickImpl tick;
   
-    Com_Protocol protocol;
-    protocol.initialize(&serial, &tick);
+    Com_Protocol protocol(&serial, &tick, 0x0001);
     // ... 이하 동일한 코드
 }
 #endif
@@ -37,40 +37,35 @@ Tick delay1;//테스트 코드
 
 int main(void)
 {
-
-	serial.init();/*****필수*****/
+    serial.init();/*****필수*****/
 
     // Option. 송수신 표시용 LED
-	serial.init_txLed(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
-	serial.init_rxLed(LD7_GPIO_Port, LD7_Pin, GPIO_PIN_SET);
+    serial.init_txLed(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
+    serial.init_rxLed(LD7_GPIO_Port, LD7_Pin, GPIO_PIN_SET);
 
-    // 프로토콜 초기화
+    STM32TickImpl tick; /*****필수*****/ //타이머 인스턴스 초기화
+    Com_Protocol protocol(&serial, &tick, 0x0001); /*****필수*****///시리얼 인터페이스, tick 인스턴스, 장치 ID 전달
 
-    STM32TickImpl tick; /*****필수*****/ //serial 내부에서 사용될 tick 인스턴스 STM32 환경에서 사용
-	Com_Protocol protocol(&serial, &tick, 0x0001); /*****필수*****///시리얼 인터페이스, tick 인스턴스, 장치 ID 전달
-
-	while(1){
-
+    while(1){
         // 테스트 코드
-		serial.loop();
-		if(delay1.delay(1000)){
-			protocol.sendPing(10);
-		}
+        serial.loop();
+        if(delay1.delay(1000)){
+            protocol.sendPing(10);
+        }
 
-		protocol.processReceivedData();/*****필수*****/
-	}
+        protocol.processReceivedData();/*****필수*****/
+    }
 }
 
 /*****필수*****/
 /* HAL Driver Callback */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
-	serial.TxCpltCallback(huart);
+    serial.TxCpltCallback(huart);
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-	serial.RxCpltCallback(huart);
+    serial.RxCpltCallback(huart);
 }
-
 ```
 
 ## 주요 기능
@@ -89,6 +84,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 | 수신자 ID   | 2             | 수신 장치의 고유 식별자                                       |
 | 송신자 ID   | 2             | 송신 장치의 고유 식별자                                       |
 | CMD         | 2             | 명령어 코드                                                   |
+| 시퀀스 번호 | 2             | 패킷 순서를 식별하는 번호                                     |
 | 페이로드    | 가변          | 실제 전송할 데이터                                            |
 | CRC         | 2             | CRC16 XMODEM 체크섬                                           |
 
@@ -120,7 +116,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
 ### 초기화 및 기본 동작
 
-- `initialize()`: UART 및 타이머 초기화
+- `Com_Protocol(ISerialInterface* serial, ITick* tick, uint16_t my_id)`: 생성자를 통한 초기화
 - `sendData()`: 데이터 패킷 전송
 - `receiveData()`: 데이터 수신
 - `processReceivedData()`: 수신된 데이터 처리
